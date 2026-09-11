@@ -1,0 +1,36 @@
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+backend/.venv/
+backend/venv/
+backend/staticfiles/
+backend/media/
+*.sqlite3
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.turbo/
+npm-debug.log*
+
+# --- Env files ---
+.env
+.env.*
+!.env.example
+!*/.env.example
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+*.pid

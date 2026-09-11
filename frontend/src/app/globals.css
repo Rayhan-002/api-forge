@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/*
+ * API Forge is a dark-only developer tool (like most API clients) rather
+ * than a light/dark themed marketing site, so these tokens are the
+ * palette, not just a dark-mode override.
+ */
+:root {
+  --background: #0b0e14;
+  --surface: #111521;
+  --surface-hover: #171c2b;
+  --border: #232a3b;
+  --foreground: #e6e9ef;
+  --muted-foreground: #8b93a7;
+
+  --accent: #ff7a45;
+  --accent-hover: #ff9466;
+  --accent-foreground: #1a0e08;
+
+  --success: #22c55e;
+  --info: #38bdf8;
+  --warning: #eab308;
+  --danger: #ef4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
