@@ -1,17 +1,18 @@
-"use client";
+'use client';
 
-import { FolderKanban, Globe, History, LayoutDashboard, Settings } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { FolderKanban, Globe, History, LayoutDashboard, Settings, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-import { cn } from "@/lib/utils/cn";
+import { cn } from '@/lib/utils/cn';
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Collections", href: "/collections", icon: FolderKanban },
-  { label: "Environments", href: "/environments", icon: Globe },
-  { label: "History", href: "/history", icon: History },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Workspace', href: '/workspace', icon: Zap },
+  { label: 'Collections', href: '/collections', icon: FolderKanban },
+  { label: 'Environments', href: '/environments', icon: Globe },
+  { label: 'History', href: '/history', icon: History },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -32,10 +33,10 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? "bg-accent/10 text-accent"
-                  : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4" />

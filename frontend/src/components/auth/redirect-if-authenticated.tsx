@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore } from '@/store/auth-store';
 
 /** Bounces an already-logged-in visitor away from /login or /register. */
 export function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
@@ -11,12 +11,12 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/dashboard");
+    if (status === 'authenticated') {
+      router.replace('/dashboard');
     }
   }, [status, router]);
 
-  if (status === "authenticated") {
+  if (status === 'authenticated') {
     return null;
   }
 

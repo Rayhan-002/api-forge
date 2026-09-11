@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /*
  * API Forge is a dark-only developer tool (like most API clients) rather
@@ -21,6 +21,11 @@
   --info: #38bdf8;
   --warning: #eab308;
   --danger: #ef4444;
+
+  /* HTTP method colors. GET/PUT/DELETE reuse the semantic tokens above;
+     POST and PATCH get their own since nothing else already fits. */
+  --method-post: #f59e0b;
+  --method-patch: #a78bfa;
 }
 
 @theme inline {
@@ -39,6 +44,9 @@
   --color-info: var(--info);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+
+  --color-method-post: var(--method-post);
+  --color-method-patch: var(--method-patch);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

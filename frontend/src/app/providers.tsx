@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { Toaster } from "sonner";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
+import { Toaster } from 'sonner';
 
-import { SessionBootstrap } from "@/components/auth/session-bootstrap";
+import { SessionBootstrap } from '@/components/auth/session-bootstrap';
 
 let browserQueryClient: QueryClient | undefined;
 
 function getQueryClient() {
-  if (typeof window === "undefined") return new QueryClient();
+  if (typeof window === 'undefined') return new QueryClient();
   browserQueryClient ??= new QueryClient({
     defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
   });

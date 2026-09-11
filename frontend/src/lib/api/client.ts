@@ -1,18 +1,18 @@
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore } from '@/store/auth-store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 export class ApiError extends Error {
   status: number;
 
   constructor(status: number, message: string) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
     this.status = status;
   }
 }
 
-interface RequestOptions extends Omit<RequestInit, "body"> {
+interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** Skip attaching the access token and skip the refresh-and-retry dance on 401. */
   skipAuth?: boolean;
@@ -21,15 +21,15 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
     const data = await response.json();
-    if (typeof data?.error === "string") return data.error;
-    if (data?.error && typeof data.error === "object") {
+    if (typeof data?.error === 'string') return data.error;
+    if (data?.error && typeof data.error === 'object') {
       const firstKey = Object.keys(data.error)[0];
       const firstValue = data.error[firstKey];
       return Array.isArray(firstValue) ? String(firstValue[0]) : String(firstValue);
     }
-    return response.statusText || "Request failed.";
+    return response.statusText || 'Request failed.';
   } catch {
-    return response.statusText || "Request failed.";
+    return response.statusText || 'Request failed.';
   }
 }
 
@@ -43,8 +43,8 @@ let refreshPromise: Promise<string | null> | null = null;
 export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_URL}/api/auth/refresh/`, {
-      method: "POST",
-      credentials: "include",
+      method: 'POST',
+      credentials: 'include',
     })
       .then(async (res) => {
         if (!res.ok) return null;
@@ -60,20 +60,23 @@ export async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-export async function apiFetch<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T = unknown>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { body, skipAuth, headers, ...rest } = options;
 
   const doFetch = () => {
     const token = useAuthStore.getState().accessToken;
     const finalHeaders: HeadersInit = {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(headers ?? {}),
       ...(!skipAuth && token ? { Authorization: `Bearer ${token}` } : {}),
     };
     return fetch(`${API_URL}${path}`, {
       ...rest,
       headers: finalHeaders,
-      credentials: "include",
+      credentials: 'include',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   };

@@ -1,6 +1,6 @@
-import { RequireAuth } from "@/components/auth/require-auth";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import { RequireAuth } from '@/components/auth/require-auth';
+import { Sidebar } from '@/components/layout/sidebar';
+import { Topbar } from '@/components/layout/topbar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (

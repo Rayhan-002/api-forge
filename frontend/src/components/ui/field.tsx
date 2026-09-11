@@ -1,6 +1,6 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode } from 'react';
 
-import { cn } from "@/lib/utils/cn";
+import { cn } from '@/lib/utils/cn';
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -19,9 +19,9 @@ export function Field({ label, error, hint, id, className, ...props }: FieldProp
       <input
         id={inputId}
         className={cn(
-          "rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground",
-          "placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent",
-          error && "border-danger focus:border-danger focus:ring-danger",
+          'rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground',
+          'placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent',
+          error && 'border-danger focus:border-danger focus:ring-danger',
           className,
         )}
         aria-invalid={Boolean(error)}

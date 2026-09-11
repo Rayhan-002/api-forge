@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useMutation } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useMutation } from '@tanstack/react-query';
+import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-import { logout } from "@/lib/api/auth";
-import { useAuthStore } from "@/store/auth-store";
-import { Button } from "@/components/ui/button";
+import { logout } from '@/lib/api/auth';
+import { useAuthStore } from '@/store/auth-store';
+import { Button } from '@/components/ui/button';
 
 export function Topbar() {
   const router = useRouter();
@@ -18,8 +18,8 @@ export function Topbar() {
     mutationFn: logout,
     onSettled: () => {
       clearSession();
-      router.replace("/login");
-      toast.success("Signed out.");
+      router.replace('/login');
+      toast.success('Signed out.');
     },
   });
 

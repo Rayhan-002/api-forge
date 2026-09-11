@@ -1,8 +1,8 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
-import type { User } from "@/types/auth";
+import type { User } from '@/types/auth';
 
-type AuthStatus = "idle" | "authenticated" | "unauthenticated";
+type AuthStatus = 'idle' | 'authenticated' | 'unauthenticated';
 
 interface AuthState {
   status: AuthStatus;
@@ -20,10 +20,10 @@ interface AuthState {
  * A full page reload always re-derives this from a silent refresh call.
  */
 export const useAuthStore = create<AuthState>((set) => ({
-  status: "idle",
+  status: 'idle',
   accessToken: null,
   user: null,
-  setSession: (accessToken, user) => set({ status: "authenticated", accessToken, user }),
-  setAccessToken: (accessToken) => set({ status: "authenticated", accessToken }),
-  clearSession: () => set({ status: "unauthenticated", accessToken: null, user: null }),
+  setSession: (accessToken, user) => set({ status: 'authenticated', accessToken, user }),
+  setAccessToken: (accessToken) => set({ status: 'authenticated', accessToken }),
+  clearSession: () => set({ status: 'unauthenticated', accessToken: null, user: null }),
 }));
