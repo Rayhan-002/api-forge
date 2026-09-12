@@ -11,4 +11,8 @@ class IsOwner(BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        return obj.owner_id == request.user.id
+        # Compares the related object, not `owner_id` — `obj.owner` may be a
+        # real FK (Collection) or a computed property that resolves
+        # ownership transitively (SavedRequest -> its Collection), and both
+        # work uniformly this way.
+        return obj.owner == request.user

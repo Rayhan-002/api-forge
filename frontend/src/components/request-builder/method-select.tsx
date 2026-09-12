@@ -1,16 +1,7 @@
 'use client';
 
+import { METHOD_COLOR } from '@/lib/utils/method-color';
 import { HTTP_METHODS, type HttpMethod } from '@/types/request';
-
-const METHOD_COLOR: Record<HttpMethod, string> = {
-  GET: 'text-success',
-  POST: 'text-method-post',
-  PUT: 'text-info',
-  PATCH: 'text-method-patch',
-  DELETE: 'text-danger',
-  HEAD: 'text-muted-foreground',
-  OPTIONS: 'text-muted-foreground',
-};
 
 export function MethodSelect({
   value,

@@ -11,7 +11,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 1 | Setup + DB + auth | Done | _(this commit)_ |
 | 2 | Request builder + HTTP execution | Done | _(this commit)_ |
 | 3 | Response viewer | Done | _(this commit)_ |
-| 4 | Collections + saved requests | Not started | — |
+| 4 | Collections + saved requests | Done | _(this commit)_ |
 | 5 | History | Not started | — |
 | 6 | Environments + variables | Not started | — |
 | 7 | Request chaining | Not started | — |
@@ -92,4 +92,25 @@ Full architecture/design plan: see project history — summarized in `README.md`
 
 ### Notes / deviations encountered
 - No backend changes this phase — Phase 3 was frontend-only, reusing Phase 2's `/api/execute/` response shape as-is.
+- No deviations from the approved plan.
+
+---
+
+## Phase 4 — Collections + saved requests
+
+### Planned
+- [ ] CRUD, save/load into builder, move/rename/delete, isolation tests
+
+### Implemented
+- [x] `Collection` model/API (`apps/collections`): CRUD, owner-scoped, `request_count` annotation for the list view.
+- [x] `SavedRequest` model/API (`apps/saved_requests`): `collection` FK with `related_name="requests"`, `extract_rules` field present now (default `[]`) so the schema won't need a Phase 7 migration. Ownership is transitive (`SavedRequest.owner` is a property returning `self.collection.owner`) — this exposed a bug in Phase 1's `IsOwner` permission, which assumed a real `owner_id` column; fixed to compare `obj.owner == request.user` so it works for both a direct FK (Collection) and a computed property (SavedRequest).
+- [x] Endpoints: `GET/POST /api/collections/`, `GET/PATCH/DELETE /api/collections/{id}/`, `GET/POST /api/collections/{id}/requests/`, `GET/PATCH/DELETE /api/requests/{id}/`, `POST /api/requests/{id}/move/`. `collection` and `order` are **read-only** on the main serializer — never settable from a PATCH body, only via the dedicated move endpoint (each re-validated against the *caller's* collections) — closes an obvious "reparent into someone else's collection" hole.
+- [x] Frontend Collections page: expandable collection rows (lazy-loaded requests), create/rename/delete collections, and per-request rename/move/delete, all via small reusable dialogs (`Dialog`, `ConfirmDialog` — new, dependency-free, used here for the first time since Phase 1's plan called for them).
+- [x] Workspace integration: a "Save" button next to Send — on `/workspace` it opens a name+collection dialog, creates the `SavedRequest`, and redirects to `/workspace/[requestId]`; on `/workspace/[requestId]` it silently updates the already-loaded request. Loading a saved request hydrates the full builder (method/url/params/headers/body/auth) via a new `loadFromSavedRequest` store action.
+- [x] Backend tests: 25 new tests across both apps — full CRUD, cross-user isolation (404, not 403) for every endpoint including the collection-scoped requests list/create, ordering (`order` auto-increments), the "can't reparent via PATCH" security case, and move-endpoint isolation (can't move into or move a request out of another user's collection).
+- [x] Fixed a React 19 `set-state-in-effect` lint error surfaced by the new dialogs: rather than `useEffect`-resetting local form state when a dialog reopens for a different record, each dialog's stateful form now lives in a child only mounted while the dialog is open (`Dialog` already returns `null` when closed), so `useState(initial ...)` naturally re-initializes fresh on every open — no effect needed. Applied the same reasoning to the workspace's saved-request hydration: "is this request's data loaded yet" is now tracked as `loadedRequestId` inside the Zustand store itself (set synchronously inside `loadFromSavedRequest`), not as separate local React state, avoiding both the lint issue and a one-frame flash of stale fields when switching between saved requests.
+- [x] Live end-to-end verification (scripted headless Chrome): created two collections, saved a live request from the workspace into one, confirmed it listed correctly, renamed it, moved it to the other collection, confirmed the request counts updated on both sides, deleted the request, then deleted both collections back to the empty state. Screenshots confirm styling throughout.
+
+### Notes / deviations encountered
+- Renaming a saved request is done via the Collections list's inline rename action (or by using "Save" from an already-loaded request, which does not change its name) — there is no rename field inside the workspace itself, keeping the two flows unambiguous.
 - No deviations from the approved plan.

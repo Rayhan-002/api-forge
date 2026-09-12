@@ -1,5 +1,6 @@
 'use client';
 
+import { Save } from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
@@ -19,7 +20,21 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'body', label: 'Body' },
 ];
 
-export function RequestBuilder({ onSend, isSending }: { onSend: () => void; isSending: boolean }) {
+interface RequestBuilderProps {
+  onSend: () => void;
+  isSending: boolean;
+  requestName?: string;
+  onSave?: () => void;
+  isSaving?: boolean;
+}
+
+export function RequestBuilder({
+  onSend,
+  isSending,
+  requestName,
+  onSave,
+  isSaving,
+}: RequestBuilderProps) {
   const [tab, setTab] = useState<Tab>('params');
   const { method, setMethod, url, setUrl, params, setParams, headers, setHeaders } =
     useRequestBuilderStore();
@@ -31,6 +46,7 @@ export function RequestBuilder({ onSend, isSending }: { onSend: () => void; isSe
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      {requestName && <p className="text-sm font-medium text-foreground">{requestName}</p>}
       <div className="flex items-center gap-2">
         <MethodSelect value={method} onChange={setMethod} />
         <input
@@ -43,6 +59,12 @@ export function RequestBuilder({ onSend, isSending }: { onSend: () => void; isSe
           placeholder="https://api.example.com/users"
           className="h-10 flex-1 rounded-md border border-border bg-surface px-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
         />
+        {onSave && (
+          <Button variant="secondary" onClick={onSave} isLoading={isSaving} className="h-10">
+            <Save className="h-4 w-4" />
+            Save
+          </Button>
+        )}
         <Button onClick={handleSend} isLoading={isSending} disabled={!url.trim()} className="h-10">
           {isSending ? 'Sending…' : 'Send'}
         </Button>
