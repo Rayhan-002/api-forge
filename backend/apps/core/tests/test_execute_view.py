@@ -6,6 +6,7 @@ from rest_framework import status
 from apps.accounts.models import User
 from apps.core.errors import RequestExecutionError
 from apps.core.http_client import ExecutionResult
+from apps.environments.models import Environment, EnvironmentVariable
 from apps.history.models import RequestHistory
 
 pytestmark = pytest.mark.django_db
@@ -113,3 +114,58 @@ class TestExecuteView:
         assert entry.success is False
         assert entry.status_code is None
         assert entry.error_message == "Host resolves to a disallowed address."
+
+
+class TestExecuteViewVariableResolution:
+    def test_resolves_variables_from_active_environment(self, api_client):
+        user = create_user()
+        environment = Environment.objects.create(owner=user, name="Dev", is_active=True)
+        EnvironmentVariable.objects.create(
+            environment=environment, key="base_url", value="https://api.example.com"
+        )
+        api_client.force_authenticate(user=user)
+
+        fake_result = ExecutionResult(
+            status_code=200, reason_phrase="OK", headers={}, body="", url="", elapsed_ms=1, size_bytes=0
+        )
+
+        with patch("apps.core.views.execute_http_request", return_value=fake_result) as mock_execute:
+            payload = {**VALID_PAYLOAD, "url": "{{base_url}}/users"}
+            response = api_client.post("/api/execute/", payload, format="json")
+
+        assert response.data["success"] is True
+        assert mock_execute.call_args.kwargs["url"] == "https://api.example.com/users"
+
+    def test_undefined_variable_returns_controlled_failure_without_calling_execute(self, api_client):
+        user = create_user()
+        api_client.force_authenticate(user=user)
+
+        with patch("apps.core.views.execute_http_request") as mock_execute:
+            payload = {**VALID_PAYLOAD, "url": "{{base_url}}/users"}
+            response = api_client.post("/api/execute/", payload, format="json")
+
+        assert response.data["success"] is False
+        assert response.data["error_type"] == "unresolved_variable"
+        mock_execute.assert_not_called()
+
+    def test_history_stores_unresolved_template_not_the_resolved_secret(self, api_client):
+        user = create_user()
+        environment = Environment.objects.create(owner=user, name="Dev", is_active=True)
+        EnvironmentVariable.objects.create(environment=environment, key="token", value="real-secret-value")
+        api_client.force_authenticate(user=user)
+
+        fake_result = ExecutionResult(
+            status_code=200, reason_phrase="OK", headers={}, body="", url="", elapsed_ms=1, size_bytes=0
+        )
+
+        with patch("apps.core.views.execute_http_request", return_value=fake_result):
+            payload = {
+                **VALID_PAYLOAD,
+                "headers": [{"key": "X-Token", "value": "{{token}}", "enabled": True}],
+            }
+            api_client.post("/api/execute/", payload, format="json")
+
+        entry = RequestHistory.objects.get(owner=user)
+        stored_value = entry.request_snapshot["headers"][0]["value"]
+        assert stored_value == "{{token}}"
+        assert "real-secret-value" not in str(entry.request_snapshot)

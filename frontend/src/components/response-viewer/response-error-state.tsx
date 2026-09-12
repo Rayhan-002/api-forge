@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Clock, Globe, Link2Off, Wifi, XCircle } from 'lucide-react';
+import { AlertTriangle, Ban, Braces, Clock, Globe, Link2Off, Wifi, XCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const ERROR_TYPE_META: Record<string, { icon: LucideIcon; label: string }> = {
@@ -11,6 +11,7 @@ const ERROR_TYPE_META: Record<string, { icon: LucideIcon; label: string }> = {
   response_too_large: { icon: AlertTriangle, label: 'Response too large' },
   invalid_body_type: { icon: AlertTriangle, label: 'Invalid body' },
   invalid_auth_type: { icon: AlertTriangle, label: 'Invalid auth' },
+  unresolved_variable: { icon: Braces, label: 'Undefined variable' },
   request_error: { icon: XCircle, label: 'Request failed' },
 };
 

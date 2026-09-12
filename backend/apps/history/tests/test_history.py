@@ -70,6 +70,32 @@ class TestRecordHistoryRedaction:
 
         assert entry.request_snapshot["auth_config"]["token"] == "••••"
 
+    def test_does_not_redact_a_variable_template_in_auth_config(self):
+        """
+        A `{{token}}` reference doesn't itself contain a secret — the real
+        value only exists after apps.core.variables resolves it, which
+        happens after this snapshot is already written. Redacting the
+        template would break restoring the request from history for no
+        security benefit.
+        """
+        user = create_user()
+        data = {**BASE_REQUEST_DATA, "auth_type": "bearer", "auth_config": {"token": "{{token}}"}}
+
+        entry = record_history(owner=user, request_data=data, success=True, result=fake_result())
+
+        assert entry.request_snapshot["auth_config"]["token"] == "{{token}}"
+
+    def test_does_not_redact_a_variable_template_in_a_sensitive_header(self):
+        user = create_user()
+        data = {
+            **BASE_REQUEST_DATA,
+            "headers": [{"key": "Authorization", "value": "Bearer {{token}}", "enabled": True}],
+        }
+
+        entry = record_history(owner=user, request_data=data, success=True, result=fake_result())
+
+        assert entry.request_snapshot["headers"][0]["value"] == "Bearer {{token}}"
+
     def test_redacts_basic_password_but_not_username(self):
         user = create_user()
         data = {

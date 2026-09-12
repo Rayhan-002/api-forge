@@ -3,11 +3,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.environments.services import get_active_variables
 from apps.history.services import record_history
 
 from .errors import RequestExecutionError
 from .http_client import execute_http_request
 from .serializers import ExecuteRequestSerializer
+from .variables import resolve_payload
 
 
 class ExecuteView(APIView):
@@ -17,12 +19,16 @@ class ExecuteView(APIView):
     Always returns 200 for a well-formed call to *this* endpoint — a
     malformed payload is a normal DRF 400, but once the payload is valid,
     whether the *target* request succeeded or failed (timeout, DNS error,
-    blocked URL, ...) is reported in the response body via `success`, not
-    via this endpoint's own status code.
+    blocked URL, undefined variable, ...) is reported in the response body
+    via `success`, not via this endpoint's own status code.
 
-    Every execution — success or failure — is logged to the caller's
-    history (see apps.history.services.record_history), matching a real
-    API client where Send always leaves a trail.
+    `{{variable}}` placeholders are resolved against the caller's active
+    environment (if any) immediately before execution. History always logs
+    the *unresolved* template, never the resolved values — if a variable
+    holds a secret, the resolved request could contain it in plaintext
+    (e.g. a custom header redaction wouldn't know to cover), whereas the
+    literal `{{token}}` text is always safe to store. See apps.core.variables
+    and apps.history.services for the two halves of this.
     """
 
     permission_classes = [IsAuthenticated]
@@ -35,15 +41,17 @@ class ExecuteView(APIView):
         payload = serializer.validated_data
 
         try:
+            variables = get_active_variables(request.user)
+            resolved = resolve_payload(payload, variables)
             result = execute_http_request(
-                method=payload["method"],
-                url=payload["url"],
-                params=payload["params"],
-                headers=payload["headers"],
-                body_type=payload["body_type"],
-                body=payload["body"],
-                auth_type=payload["auth_type"],
-                auth_config=payload["auth_config"],
+                method=resolved["method"],
+                url=resolved["url"],
+                params=resolved["params"],
+                headers=resolved["headers"],
+                body_type=resolved["body_type"],
+                body=resolved["body"],
+                auth_type=resolved["auth_type"],
+                auth_config=resolved["auth_config"],
             )
         except RequestExecutionError as exc:
             record_history(owner=request.user, request_data=payload, success=False, error_message=exc.message)

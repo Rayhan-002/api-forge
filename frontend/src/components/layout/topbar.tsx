@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { logout } from '@/lib/api/auth';
 import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
+import { EnvironmentSwitcher } from '@/components/layout/environment-switcher';
 
 export function Topbar() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export function Topbar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-end gap-4 border-b border-border bg-surface px-4">
+      <EnvironmentSwitcher />
       <span className="text-sm text-muted-foreground">{user?.email}</span>
       <Button
         variant="ghost"

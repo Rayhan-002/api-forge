@@ -13,7 +13,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 3 | Response viewer | Done | _(this commit)_ |
 | 4 | Collections + saved requests | Done | _(this commit)_ |
 | 5 | History | Done | _(this commit)_ |
-| 6 | Environments + variables | Not started | — |
+| 6 | Environments + variables | Done | _(this commit)_ |
 | 7 | Request chaining | Not started | — |
 | 8 | Testing / assertions | Not started | — |
 | 9 | Dashboard + polish | Not started | — |
@@ -134,3 +134,25 @@ Full architecture/design plan: see project history — summarized in `README.md`
 ### Notes / deviations encountered
 - No live production deployment implications — purely additive to the existing execute path.
 - No deviations from the approved plan.
+
+---
+
+## Phase 6 — Environments + variables
+
+### Planned
+- [ ] CRUD, activate, `{{var}}` resolution in execution, secret masking
+
+### Implemented
+- [x] `Environment`/`EnvironmentVariable` models (`apps/environments`): one active environment per owner (enforced in `services.activate_environment`, not a DB constraint — a rule this simple didn't need one), unique environment name and unique variable key per owner/environment. `EnvironmentVariable.owner` is a transitive property (same pattern as `SavedRequest` from Phase 4), so the existing `IsOwner` permission works unchanged.
+- [x] Secret masking: a secret variable's `value` is **never** returned in plaintext by the API once set — `to_representation` always substitutes `••••`. There's deliberately no "reveal" endpoint; changing a secret is update-in-place, same UX as a password field. Omitting `value` on a PATCH leaves it unchanged (tested explicitly).
+- [x] `{{variable}}` resolution (`apps/core/variables.py`): substitutes across URL, params, headers, body, and `auth_config` against the caller's *active* environment (looked up automatically — the frontend never has to pass an environment id). Undefined variables fail loudly with a dedicated `unresolved_variable` error naming every missing one at once, rather than silently sending a literal `{{token}}` to the target host.
+- [x] Critical ordering, verified by test: SSRF validation runs against the **resolved** URL (so `{{base_url}}` can't be used to sneak past it), while history logs the **unresolved template** (so `{{token}}` never gets its real value written to the database even though the actual HTTP call legitimately used it).
+- [x] Endpoints: full `Environment`/`EnvironmentVariable` CRUD, `POST /api/environments/{id}/activate/`, `POST /api/environments/deactivate/`.
+- [x] Frontend: Environments page (expandable rows, matching the Collections page's established pattern — create/rename/delete environments, add/edit/delete variables via dialogs, Activate button), plus a compact environment switcher in the topbar so switching the active environment doesn't require leaving the workspace. New `unresolved_variable` entry in the response viewer's distinct error states.
+- [x] **Bug found via live verification, not the test suite, and fixed**: Phase 5's history redaction unconditionally masked `auth_config.token`/`password`/`key_value` and sensitive headers *regardless of content* — so a `{{token}}` reference got redacted to `••••` right alongside a real literal secret, defeating the whole point of storing the unresolved template (restoring from history would then require re-entering a credential that was never actually exposed). Fixed by skipping redaction when the value contains a `{{variable}}` reference — reusing `apps.core.variables.VARIABLE_PATTERN` rather than duplicating the regex. The existing Phase 5 tests didn't catch this because none of them exercised a templated value in a sensitive field; added two tests that do (`test_does_not_redact_a_variable_template_in_auth_config`, `..._in_a_sensitive_header`).
+- [x] Backend tests: 24 new tests — CRUD + isolation for both models, unique-name/unique-key enforcement (and that it's scoped correctly, not global), activation/deactivation semantics, secret masking on read, update-without-value behavior, resolver unit tests (every field type, multiple missing variables reported together), and integration tests on `/api/execute/` confirming real resolution, the undefined-variable short-circuit (never calls the HTTP client), and the redaction-vs-template distinction end-to-end.
+- [x] Live end-to-end verification (scripted headless Chrome) against **httpbin.org**: created an environment with a plain `base_url` and a secret `token`, activated it, sent `{{base_url}}/get` with `Authorization: Bearer {{token}}` — confirmed httpbin actually received the real resolved values (`"Authorization": "Bearer super-secret-value"`) while the UI kept showing the literal `{{...}}` templates throughout. Restored the request from history and confirmed the auth field still read `{{token}}` (not redacted, not the real secret). Sent a request referencing an undefined variable and confirmed the distinct error. This live pass is what surfaced the redaction bug above — the test suite alone would not have caught it, since no existing test combined "sensitive field" with "templated value."
+
+### Notes / deviations encountered
+- No frontend live-preview of resolved values (e.g. showing what `{{base_url}}/users` currently resolves to while typing) — resolution is server-side-only and only visible in the actual response. A nice-to-have deferred as a future improvement.
+- No other deviations from the approved plan.

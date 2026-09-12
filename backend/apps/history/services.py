@@ -10,7 +10,18 @@ at secrets inside a JSON/raw request body (e.g. a login payload's
 "password" field), since a heuristic there would be unreliable: it could
 both mask legitimate non-secret fields and miss real secrets under an
 unexpected name. This is a documented limitation, not an oversight.
+
+A value is only redacted if it's a *literal* secret typed directly into
+the field. A `{{variable}}` reference is left untouched: this function
+only ever sees the unresolved template (see apps.core.views.ExecuteView),
+so a templated value never contains the actual secret — that only exists
+once apps.core.variables resolves it against the active environment,
+which happens after history has already been written. Redacting the
+template too would be pointless (nothing sensitive to hide) and would
+break restoring a history entry back into a working request.
 """
+
+from apps.core.variables import VARIABLE_PATTERN
 
 from .models import RequestHistory
 
@@ -19,12 +30,16 @@ SENSITIVE_AUTH_CONFIG_FIELDS = {"token", "password", "key_value"}
 REDACTED = "••••"
 
 
+def _is_template(value: str) -> bool:
+    return bool(VARIABLE_PATTERN.search(value or ""))
+
+
 def _redact_headers(headers):
     redacted = []
     for row in headers or []:
         key = row.get("key", "")
         value = row.get("value", "")
-        if key.strip().lower() in SENSITIVE_HEADER_NAMES and value:
+        if key.strip().lower() in SENSITIVE_HEADER_NAMES and value and not _is_template(value):
             value = REDACTED
         redacted.append({"key": key, "value": value, "enabled": row.get("enabled", True)})
     return redacted
@@ -35,7 +50,8 @@ def _redact_auth_config(auth_config):
         return auth_config
     redacted = dict(auth_config)
     for field in SENSITIVE_AUTH_CONFIG_FIELDS:
-        if redacted.get(field):
+        value = redacted.get(field)
+        if value and not _is_template(value):
             redacted[field] = REDACTED
     return redacted
 
