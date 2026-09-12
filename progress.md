@@ -10,7 +10,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 |---|---|---|---|
 | 1 | Setup + DB + auth | Done | _(this commit)_ |
 | 2 | Request builder + HTTP execution | Done | _(this commit)_ |
-| 3 | Response viewer | Not started | — |
+| 3 | Response viewer | Done | _(this commit)_ |
 | 4 | Collections + saved requests | Not started | — |
 | 5 | History | Not started | — |
 | 6 | Environments + variables | Not started | — |
@@ -74,3 +74,22 @@ Full architecture/design plan: see project history — summarized in `README.md`
 - **Redirects preserve the original method and body on every hop** (not just 307/308) rather than implementing RFC-exact 301/302-downgrades-to-GET browser semantics — simpler and more predictable for an API testing tool, at the cost of not matching browser redirect behavior exactly.
 - Response `headers` collapse duplicate header names (e.g. repeated `Set-Cookie`) to the last value — full multi-value fidelity is a possible future improvement, not needed yet.
 - No other deviations from the approved plan.
+
+---
+
+## Phase 3 — Response viewer
+
+### Planned
+- [ ] Status/time/size bar, headers table, JSON tree + raw view, distinct error states (timeout/DNS/connection/invalid URL)
+
+### Implemented
+- [x] `JsonTree` (`components/response-viewer/json-tree.tsx`): dependency-free recursive collapsible JSON viewer — click any `{`/`[` to collapse (shows a key/item count when collapsed), type-colored leaf values (strings/numbers/booleans/null).
+- [x] `ResponseBodyViewer`: Pretty/Raw toggle for JSON bodies (Pretty = `JsonTree`, Raw = formatted `JSON.stringify`), plain `<pre>` for non-JSON bodies, Copy-to-clipboard button with a "Copied" confirmation state.
+- [x] `ResponseHeadersTable`: response headers as a simple table, under a `Headers (n)` tab next to `Body`.
+- [x] `ResponseStatusBar`: status code + reason phrase (colored by status class: 2xx green / 3xx blue / 4xx amber / 5xx red), elapsed time, size — extracted `formatBytes`/`statusColorClass` into `lib/utils/format.ts` for reuse.
+- [x] `ResponseErrorState`: a distinct icon + heading + message per `error_type` (timeout, DNS failure, connection error, invalid URL, SSRF-blocked, too-many-redirects, response-too-large, etc.), so failure modes are visually distinguishable at a glance rather than one generic "error" box.
+- [x] Live end-to-end verification (scripted headless Chrome): a real JSON response from httpbin.org rendered as a collapsible tree, expand/collapse both directions, Pretty/Raw toggle, Headers tab showing real response headers, Copy button confirmed to actually populate the clipboard (with clipboard permissions granted to the headless context — Playwright denies clipboard access by default, which is a test-harness detail, not an app bug); DNS-failure, invalid-URL, and blocked-loopback (`http://localhost:9`) error states all rendered with their distinct icon/heading/message. Screenshots confirm styling.
+
+### Notes / deviations encountered
+- No backend changes this phase — Phase 3 was frontend-only, reusing Phase 2's `/api/execute/` response shape as-is.
+- No deviations from the approved plan.

@@ -1,33 +1,16 @@
 'use client';
 
+import { useState } from 'react';
+
 import { ApiError } from '@/lib/api/client';
+import { cn } from '@/lib/utils/cn';
 import type { ExecuteResponse } from '@/types/request';
+import { ResponseBodyViewer } from '@/components/response-viewer/response-body-viewer';
+import { ResponseErrorState } from '@/components/response-viewer/response-error-state';
+import { ResponseHeadersTable } from '@/components/response-viewer/response-headers-table';
+import { ResponseStatusBar } from '@/components/response-viewer/response-status-bar';
 
-function statusColor(status: number): string {
-  if (status < 300) return 'text-success';
-  if (status < 400) return 'text-info';
-  if (status < 500) return 'text-warning';
-  return 'text-danger';
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-const ERROR_TYPE_LABEL: Record<string, string> = {
-  timeout: 'Timed out',
-  dns_error: 'DNS lookup failed',
-  connection_error: 'Connection failed',
-  invalid_url: 'Invalid URL',
-  ssrf_blocked: 'Blocked (unsafe target)',
-  too_many_redirects: 'Too many redirects',
-  response_too_large: 'Response too large',
-  invalid_body_type: 'Invalid body',
-  invalid_auth_type: 'Invalid auth',
-  request_error: 'Request failed',
-};
+type Tab = 'body' | 'headers';
 
 interface ResponsePanelProps {
   result: ExecuteResponse | undefined;
@@ -35,24 +18,16 @@ interface ResponsePanelProps {
   isLoading: boolean;
 }
 
-/**
- * Deliberately minimal for Phase 2 — proves the execute pipeline works
- * end to end. The full response viewer (JSON tree, headers table, copy
- * button, raw/pretty toggle) is built in Phase 3.
- */
 export function ResponsePanel({ result, error, isLoading }: ResponsePanelProps) {
+  const [tab, setTab] = useState<Tab>('body');
+
   if (isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Sending…</div>;
   }
 
   if (error) {
     const message = error instanceof ApiError ? error.message : 'Could not reach the server.';
-    return (
-      <div className="p-6">
-        <p className="text-sm font-medium text-danger">Request failed</p>
-        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-      </div>
-    );
+    return <ResponseErrorState errorType="request_error" errorMessage={message} />;
   }
 
   if (!result) {
@@ -64,29 +39,44 @@ export function ResponsePanel({ result, error, isLoading }: ResponsePanelProps) 
   }
 
   if (!result.success) {
-    return (
-      <div className="p-6">
-        <p className="text-sm font-medium text-danger">
-          {ERROR_TYPE_LABEL[result.error_type] ?? 'Request failed'}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">{result.error_message}</p>
-      </div>
-    );
+    return <ResponseErrorState errorType={result.error_type} errorMessage={result.error_message} />;
   }
 
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center gap-4 text-sm">
-        <span className={`font-mono font-semibold ${statusColor(result.status_code)}`}>
-          {result.status_code} {result.reason_phrase}
-        </span>
-        <span className="text-muted-foreground">{result.elapsed_ms} ms</span>
-        <span className="text-muted-foreground">{formatBytes(result.size_bytes)}</span>
-      </div>
+  const headerCount = Object.keys(result.headers).length;
 
-      <pre className="max-h-[480px] overflow-auto rounded-md border border-border bg-surface p-3 font-mono text-xs text-foreground">
-        {result.body || '(empty body)'}
-      </pre>
+  return (
+    <div className="flex h-full flex-col">
+      <ResponseStatusBar
+        statusCode={result.status_code}
+        reasonPhrase={result.reason_phrase}
+        elapsedMs={result.elapsed_ms}
+        sizeBytes={result.size_bytes}
+      />
+      <div className="flex shrink-0 gap-1 border-b border-border px-4">
+        {(
+          [
+            ['body', 'Body'],
+            ['headers', `Headers (${headerCount})`],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={cn(
+              'px-3 py-2 text-sm font-medium transition-colors',
+              tab === id
+                ? 'border-b-2 border-accent text-accent'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {tab === 'body' && <ResponseBodyViewer body={result.body} />}
+        {tab === 'headers' && <ResponseHeadersTable headers={result.headers} />}
+      </div>
     </div>
   );
 }
