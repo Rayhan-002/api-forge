@@ -12,7 +12,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 2 | Request builder + HTTP execution | Done | _(this commit)_ |
 | 3 | Response viewer | Done | _(this commit)_ |
 | 4 | Collections + saved requests | Done | _(this commit)_ |
-| 5 | History | Not started | — |
+| 5 | History | Done | _(this commit)_ |
 | 6 | Environments + variables | Not started | — |
 | 7 | Request chaining | Not started | — |
 | 8 | Testing / assertions | Not started | — |
@@ -113,4 +113,24 @@ Full architecture/design plan: see project history — summarized in `README.md`
 
 ### Notes / deviations encountered
 - Renaming a saved request is done via the Collections list's inline rename action (or by using "Save" from an already-loaded request, which does not change its name) — there is no rename field inside the workspace itself, keeping the two flows unambiguous.
+- No deviations from the approved plan.
+
+---
+
+## Phase 5 — History
+
+### Planned
+- [ ] Auto-logged on every execute (redacted), list/restore/clear/delete
+
+### Implemented
+- [x] `RequestHistory` model (`apps/history`): owner-scoped, `saved_request` FK (`SET_NULL` — a deleted saved request doesn't take its history with it), status/timing/size as their own columns, `request_snapshot`/`response_snapshot` JSON. Deliberately does **not** store the response body (only its size) — history exists to let you *restore a request*, not replay an old response, so the extra storage wasn't worth it.
+- [x] `record_history()` service, wired into `ExecuteView` so **every** `/api/execute/` call is logged — success or failure — matching how a real API client always leaves a trail on Send. Redacts known secret-bearing fields before they're ever written to the database: `Authorization`/`Proxy-Authorization`/`X-Api-Key`/`Cookie` header values, and `token`/`password`/`key_value` in `auth_config`, all replaced with `••••`. Deliberately does **not** attempt to guess at secrets inside a JSON/raw request body (e.g. a login payload's `password` field) — a documented limitation, since a heuristic there would be unreliable in both directions.
+- [x] Endpoints: `GET /api/history/` (paginated, filterable by `?method=` and `?success=`), `GET/DELETE /api/history/{id}/`, `DELETE /api/history/clear/` (own entries only).
+- [x] Frontend History page: All/Success/Failed filter tabs, per-entry restore/delete, Clear All (with confirmation). Restoring loads the (redacted) snapshot into the workspace builder and — new store action `loadFromSnapshot`, which `loadFromSavedRequest` now also delegates to, so both code paths share one implementation — surfaces a toast telling the user secrets were redacted and need re-entering when a restored entry actually had any.
+- [x] Fixed a real bug found while wiring this up: `/workspace/page.tsx` was unconditionally resetting the draft on mount (added in Phase 4 to stop a loaded saved request's fields from leaking into a fresh session) — which would have silently wiped out a history restore the instant it navigated there. Moved the reset to the actual "start fresh" action points (Dashboard's New Request button, the sidebar's Workspace link) instead of the destination page, so intent lives where the user expressed it.
+- [x] Backend tests: 19 new tests — redaction (each sensitive header/auth-config field, confirming non-sensitive ones are left alone), success/failure outcome storage, list/detail/delete/clear isolation, method/success filtering, plus two integration tests confirming `/api/execute/` actually logs history on both outcomes.
+- [x] Live end-to-end verification (scripted headless Chrome): sent a real bearer-authenticated request and a real DNS-failure request, confirmed both appear in history with correct status/timing, confirmed the Success/Failed filters isolate them correctly, restored the bearer-token request and **confirmed the restored token field shows `••••`, not the real secret**, deleted one entry, cleared the rest back to the empty state.
+
+### Notes / deviations encountered
+- No live production deployment implications — purely additive to the existing execute path.
 - No deviations from the approved plan.

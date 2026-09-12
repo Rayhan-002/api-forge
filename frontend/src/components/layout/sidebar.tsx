@@ -5,10 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils/cn';
+import { useRequestBuilderStore } from '@/store/request-builder-store';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Workspace', href: '/workspace', icon: Zap },
+  // Resets the draft: this link means "start a blank request," distinct
+  // from navigating to /workspace with fields already populated (loading a
+  // saved request, restoring from history).
+  { label: 'Workspace', href: '/workspace', icon: Zap, resetsDraft: true },
   { label: 'Collections', href: '/collections', icon: FolderKanban },
   { label: 'Environments', href: '/environments', icon: Globe },
   { label: 'History', href: '/history', icon: History },
@@ -17,6 +21,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const resetDraft = useRequestBuilderStore((state) => state.resetDraft);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
@@ -26,12 +31,13 @@ export function Sidebar() {
         </span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        {NAV_ITEMS.map(({ label, href, icon: Icon, resetsDraft }) => {
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
+              onClick={resetsDraft ? () => resetDraft() : undefined}
               className={cn(
                 'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 isActive

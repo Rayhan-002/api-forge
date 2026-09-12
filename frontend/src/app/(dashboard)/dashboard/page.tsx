@@ -4,10 +4,12 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAuthStore } from '@/store/auth-store';
+import { useRequestBuilderStore } from '@/store/request-builder-store';
 import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
+  const resetDraft = useRequestBuilderStore((state) => state.resetDraft);
 
   return (
     <div className="p-8">
@@ -25,7 +27,7 @@ export default function DashboardPage() {
             for the full build plan.
           </p>
         </div>
-        <Link href="/workspace">
+        <Link href="/workspace" onClick={() => resetDraft()}>
           <Button>
             <Plus className="h-4 w-4" />
             New Request

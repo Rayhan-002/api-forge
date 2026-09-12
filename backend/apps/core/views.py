@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.history.services import record_history
+
 from .errors import RequestExecutionError
 from .http_client import execute_http_request
 from .serializers import ExecuteRequestSerializer
@@ -17,6 +19,10 @@ class ExecuteView(APIView):
     whether the *target* request succeeded or failed (timeout, DNS error,
     blocked URL, ...) is reported in the response body via `success`, not
     via this endpoint's own status code.
+
+    Every execution — success or failure — is logged to the caller's
+    history (see apps.history.services.record_history), matching a real
+    API client where Send always leaves a trail.
     """
 
     permission_classes = [IsAuthenticated]
@@ -40,7 +46,10 @@ class ExecuteView(APIView):
                 auth_config=payload["auth_config"],
             )
         except RequestExecutionError as exc:
+            record_history(owner=request.user, request_data=payload, success=False, error_message=exc.message)
             return Response({"success": False, "error_type": exc.error_type, "error_message": exc.message})
+
+        record_history(owner=request.user, request_data=payload, success=True, result=result)
 
         return Response(
             {

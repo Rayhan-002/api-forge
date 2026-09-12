@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { createSavedRequest } from '@/lib/api/saved-requests';
@@ -13,18 +13,16 @@ import { SaveRequestDialog } from '@/components/collections/save-request-dialog'
 import { RequestBuilder } from '@/components/request-builder/request-builder';
 import { ResponsePanel } from '@/components/response-viewer/response-panel';
 
+// Note: this page does NOT reset the draft on mount. `/workspace` is the
+// landing point both for "start a blank request" (Dashboard's New Request
+// button, the sidebar link — both call resetDraft() themselves before
+// navigating here) and for "restore this request from history" (which
+// populates the draft *before* navigating here). Resetting unconditionally
+// on mount would wipe out the second case.
 export default function WorkspacePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const resetDraft = useRequestBuilderStore((state) => state.resetDraft);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-
-  // A fresh, ad-hoc workspace should never carry over a previously loaded
-  // saved request's fields.
-  useEffect(() => {
-    resetDraft();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const mutation = useMutation({ mutationFn: executeRequest });
 

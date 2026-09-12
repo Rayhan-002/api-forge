@@ -21,6 +21,20 @@ function rowsFromPlain(
   return rows.map((r) => ({ id: crypto.randomUUID(), ...r }));
 }
 
+/** The common shape shared by a SavedRequest detail and a history entry's
+ * request_snapshot — anything with these fields can be loaded into the
+ * builder via `loadFromSnapshot`. */
+export interface RequestSnapshot {
+  method: HttpMethod;
+  url: string;
+  params: Array<{ key: string; value: string; enabled: boolean }>;
+  headers: Array<{ key: string; value: string; enabled: boolean }>;
+  body_type: BodyType;
+  body: string | Array<{ key: string; value: string; enabled: boolean }> | null;
+  auth_type: AuthType;
+  auth_config: AuthConfig;
+}
+
 interface RequestBuilderState {
   /** Which saved request's fields are currently loaded, if any — read this
    * (not local component state) to know whether hydration has completed,
@@ -56,6 +70,7 @@ interface RequestBuilderState {
   setApiKeyValue: (value: string) => void;
   setApiKeyAddTo: (value: 'header' | 'query') => void;
   loadFromSavedRequest: (detail: SavedRequestDetail) => void;
+  loadFromSnapshot: (snapshot: RequestSnapshot, requestId: string | null) => void;
   resetDraft: () => void;
 }
 
@@ -73,7 +88,7 @@ const BLANK_DRAFT = {
   apiKeyAddTo: 'header' as const,
 };
 
-export const useRequestBuilderStore = create<RequestBuilderState>((set) => ({
+export const useRequestBuilderStore = create<RequestBuilderState>((set, get) => ({
   loadedRequestId: null,
   method: 'GET',
   url: '',
@@ -105,27 +120,30 @@ export const useRequestBuilderStore = create<RequestBuilderState>((set) => ({
   setApiKeyValue: (apiKeyValue) => set({ apiKeyValue }),
   setApiKeyAddTo: (apiKeyAddTo) => set({ apiKeyAddTo }),
 
-  loadFromSavedRequest: (detail) => {
-    const isRawBody = detail.body_type === 'raw' || detail.body_type === 'json';
-    const authConfig = detail.auth_config as Record<string, string> | null;
+  loadFromSavedRequest: (detail) => get().loadFromSnapshot(detail, detail.id),
+
+  loadFromSnapshot: (snapshot, requestId) => {
+    const isRawBody = snapshot.body_type === 'raw' || snapshot.body_type === 'json';
+    const authConfig = snapshot.auth_config as Record<string, string> | null;
 
     set({
-      loadedRequestId: detail.id,
-      method: detail.method,
-      url: detail.url,
-      params: rowsFromPlain(detail.params),
-      headers: rowsFromPlain(detail.headers),
-      bodyType: detail.body_type,
-      rawBody: isRawBody && typeof detail.body === 'string' ? detail.body : '',
-      formBody: !isRawBody && Array.isArray(detail.body) ? rowsFromPlain(detail.body) : [newRow()],
-      authType: detail.auth_type,
-      bearerToken: detail.auth_type === 'bearer' ? (authConfig?.token ?? '') : '',
-      basicUsername: detail.auth_type === 'basic' ? (authConfig?.username ?? '') : '',
-      basicPassword: detail.auth_type === 'basic' ? (authConfig?.password ?? '') : '',
-      apiKeyName: detail.auth_type === 'api_key' ? (authConfig?.key_name ?? '') : '',
-      apiKeyValue: detail.auth_type === 'api_key' ? (authConfig?.key_value ?? '') : '',
+      loadedRequestId: requestId,
+      method: snapshot.method,
+      url: snapshot.url,
+      params: rowsFromPlain(snapshot.params),
+      headers: rowsFromPlain(snapshot.headers),
+      bodyType: snapshot.body_type,
+      rawBody: isRawBody && typeof snapshot.body === 'string' ? snapshot.body : '',
+      formBody:
+        !isRawBody && Array.isArray(snapshot.body) ? rowsFromPlain(snapshot.body) : [newRow()],
+      authType: snapshot.auth_type,
+      bearerToken: snapshot.auth_type === 'bearer' ? (authConfig?.token ?? '') : '',
+      basicUsername: snapshot.auth_type === 'basic' ? (authConfig?.username ?? '') : '',
+      basicPassword: snapshot.auth_type === 'basic' ? (authConfig?.password ?? '') : '',
+      apiKeyName: snapshot.auth_type === 'api_key' ? (authConfig?.key_name ?? '') : '',
+      apiKeyValue: snapshot.auth_type === 'api_key' ? (authConfig?.key_value ?? '') : '',
       apiKeyAddTo:
-        detail.auth_type === 'api_key'
+        snapshot.auth_type === 'api_key'
           ? ((authConfig?.add_to as 'header' | 'query') ?? 'header')
           : 'header',
     });
