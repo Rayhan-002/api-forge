@@ -9,32 +9,8 @@ runner/scripting engine; see progress.md for that tradeoff.
 
 import json
 
+from apps.core.json_path import PathNotFound, extract_json_value
 from apps.environments.models import Environment, EnvironmentVariable
-
-
-class PathNotFound(Exception):
-    pass
-
-
-def extract_json_value(data, path: str):
-    """
-    Dotted-path lookup: "token", "data.access_token", "items.0.id". Not a
-    full JSONPath implementation — deliberately just enough for chaining a
-    couple of requests together. Raises PathNotFound if any segment can't
-    be resolved.
-    """
-    current = data
-    for segment in path.split("."):
-        try:
-            if isinstance(current, list):
-                current = current[int(segment)]
-            elif isinstance(current, dict):
-                current = current[segment]
-            else:
-                raise PathNotFound(f"Cannot look up '{segment}' on a {type(current).__name__}.")
-        except (KeyError, IndexError, ValueError) as exc:
-            raise PathNotFound(f"'{segment}' not found.") from exc
-    return current
 
 
 def apply_extract_rules(*, owner, extract_rules: list[dict], response_body: str) -> list[dict]:

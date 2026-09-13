@@ -10,8 +10,9 @@ import { ResponseBodyViewer } from '@/components/response-viewer/response-body-v
 import { ResponseErrorState } from '@/components/response-viewer/response-error-state';
 import { ResponseHeadersTable } from '@/components/response-viewer/response-headers-table';
 import { ResponseStatusBar } from '@/components/response-viewer/response-status-bar';
+import { TestResultsTab } from '@/components/response-viewer/test-results-tab';
 
-type Tab = 'body' | 'headers';
+type Tab = 'body' | 'headers' | 'tests';
 
 interface ResponsePanelProps {
   result: ExecuteResponse | undefined;
@@ -52,6 +53,16 @@ export function ResponsePanel({
   }
 
   const headerCount = Object.keys(result.headers).length;
+  const testResults = result.test_results ?? [];
+
+  const tabs: Array<[Tab, string]> = [
+    ['body', 'Body'],
+    ['headers', `Headers (${headerCount})`],
+  ];
+  if (testResults.length > 0) {
+    const passedCount = testResults.filter((r) => r.passed).length;
+    tabs.push(['tests', `Tests (${passedCount}/${testResults.length})`]);
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -62,12 +73,7 @@ export function ResponsePanel({
         sizeBytes={result.size_bytes}
       />
       <div className="flex shrink-0 gap-1 border-b border-border px-4">
-        {(
-          [
-            ['body', 'Body'],
-            ['headers', `Headers (${headerCount})`],
-          ] as const
-        ).map(([id, label]) => (
+        {tabs.map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -75,7 +81,9 @@ export function ResponsePanel({
               'px-3 py-2 text-sm font-medium transition-colors',
               tab === id
                 ? 'border-b-2 border-accent text-accent'
-                : 'text-muted-foreground hover:text-foreground',
+                : id === 'tests' && testResults.some((r) => !r.passed)
+                  ? 'text-danger hover:text-danger'
+                  : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {label}
@@ -91,6 +99,7 @@ export function ResponsePanel({
           />
         )}
         {tab === 'headers' && <ResponseHeadersTable headers={result.headers} />}
+        {tab === 'tests' && <TestResultsTab results={testResults} />}
       </div>
     </div>
   );

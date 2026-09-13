@@ -26,8 +26,9 @@ class ExecuteView(APIView):
     and apps.history.services for the two halves of this.
 
     See apps.saved_requests.views.SavedRequestExecuteView for the saved
-    equivalent, which additionally applies extraction rules — both share
-    the resolve/execute/log pipeline in apps.core.services.execute_and_log.
+    equivalent, which additionally applies extraction rules and runs test
+    assertions — both share the resolve/execute/log pipeline in
+    apps.core.services.execute_and_log.
     """
 
     permission_classes = [IsAuthenticated]
@@ -39,6 +40,7 @@ class ExecuteView(APIView):
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
 
-        response_data, _result = execute_and_log(owner=request.user, payload=payload)
+        response_data, _result, _history_entry = execute_and_log(owner=request.user, payload=payload)
         response_data.setdefault("extractions", [])
+        response_data.setdefault("test_results", [])
         return Response(response_data)

@@ -48,6 +48,15 @@ export default function SavedRequestWorkspacePage({
           );
         }
       }
+      if (result.test_results.length > 0) {
+        const passedCount = result.test_results.filter((r) => r.passed).length;
+        const total = result.test_results.length;
+        if (passedCount === total) {
+          toast.success(`All ${total} test${total === 1 ? '' : 's'} passed.`);
+        } else {
+          toast.error(`${passedCount}/${total} tests passed — check the Tests tab.`);
+        }
+      }
     },
   });
 
@@ -100,6 +109,7 @@ export default function SavedRequestWorkspacePage({
           requestName={detailQuery.data?.name}
           onSave={() => saveMutation.mutate()}
           isSaving={saveMutation.isPending}
+          savedRequestId={requestId}
         />
         <ExtractRulesSummary
           savedRequestId={requestId}

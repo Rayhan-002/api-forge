@@ -5,6 +5,7 @@ don't drift out of sync on error handling or response shape.
 """
 
 from apps.environments.services import get_active_variables
+from apps.history.models import RequestHistory
 from apps.history.services import record_history
 
 from .errors import RequestExecutionError
@@ -12,12 +13,15 @@ from .http_client import ExecutionResult, execute_http_request
 from .variables import resolve_payload
 
 
-def execute_and_log(*, owner, payload: dict, saved_request=None) -> tuple[dict, ExecutionResult | None]:
+def execute_and_log(
+    *, owner, payload: dict, saved_request=None
+) -> tuple[dict, ExecutionResult | None, RequestHistory]:
     """
-    Returns (response_data, result). `result` is None when the target
-    request failed (response_data["success"] is False in that case) —
-    callers that need the raw body (e.g. to apply extraction rules) should
-    check for that.
+    Returns (response_data, result, history_entry). `result` is None when
+    the target request failed (response_data["success"] is False in that
+    case) — callers that need the raw body (e.g. to apply extraction rules
+    or run assertions) should check for that. `history_entry` is always
+    returned so callers can attach TestResults to it regardless of outcome.
     """
     try:
         variables = get_active_variables(owner)
@@ -33,16 +37,17 @@ def execute_and_log(*, owner, payload: dict, saved_request=None) -> tuple[dict, 
             auth_config=resolved["auth_config"],
         )
     except RequestExecutionError as exc:
-        record_history(
+        history_entry = record_history(
             owner=owner,
             request_data=payload,
             success=False,
             error_message=exc.message,
             saved_request=saved_request,
         )
-        return {"success": False, "error_type": exc.error_type, "error_message": exc.message}, None
+        response_data = {"success": False, "error_type": exc.error_type, "error_message": exc.message}
+        return response_data, None, history_entry
 
-    record_history(
+    history_entry = record_history(
         owner=owner, request_data=payload, success=True, result=result, saved_request=saved_request
     )
 
@@ -56,4 +61,4 @@ def execute_and_log(*, owner, payload: dict, saved_request=None) -> tuple[dict, 
         "elapsed_ms": result.elapsed_ms,
         "size_bytes": result.size_bytes,
     }
-    return response_data, result
+    return response_data, result, history_entry

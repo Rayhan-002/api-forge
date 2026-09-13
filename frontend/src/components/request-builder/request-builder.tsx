@@ -10,10 +10,11 @@ import { AuthEditor } from '@/components/request-builder/auth-editor';
 import { BodyEditor } from '@/components/request-builder/body-editor';
 import { KeyValueEditor } from '@/components/request-builder/key-value-editor';
 import { MethodSelect } from '@/components/request-builder/method-select';
+import { AssertionsTab } from '@/components/testing/assertions-tab';
 
-type Tab = 'params' | 'headers' | 'auth' | 'body';
+type Tab = 'params' | 'headers' | 'auth' | 'body' | 'tests';
 
-const TABS: Array<{ id: Tab; label: string }> = [
+const BASE_TABS: Array<{ id: Tab; label: string }> = [
   { id: 'params', label: 'Params' },
   { id: 'headers', label: 'Headers' },
   { id: 'auth', label: 'Auth' },
@@ -26,6 +27,8 @@ interface RequestBuilderProps {
   requestName?: string;
   onSave?: () => void;
   isSaving?: boolean;
+  /** Only saved requests can have assertions — shows a Tests tab when provided. */
+  savedRequestId?: string;
 }
 
 export function RequestBuilder({
@@ -34,10 +37,15 @@ export function RequestBuilder({
   requestName,
   onSave,
   isSaving,
+  savedRequestId,
 }: RequestBuilderProps) {
   const [tab, setTab] = useState<Tab>('params');
   const { method, setMethod, url, setUrl, params, setParams, headers, setHeaders } =
     useRequestBuilderStore();
+
+  const tabs = savedRequestId
+    ? [...BASE_TABS, { id: 'tests' as const, label: 'Tests' }]
+    : BASE_TABS;
 
   function handleSend() {
     if (!url.trim() || isSending) return;
@@ -72,7 +80,7 @@ export function RequestBuilder({
 
       <div>
         <div className="flex gap-1 border-b border-border">
-          {TABS.map(({ id, label }) => (
+          {tabs.map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -93,6 +101,7 @@ export function RequestBuilder({
           {tab === 'headers' && <KeyValueEditor rows={headers} onChange={setHeaders} />}
           {tab === 'auth' && <AuthEditor />}
           {tab === 'body' && <BodyEditor />}
+          {tab === 'tests' && savedRequestId && <AssertionsTab savedRequestId={savedRequestId} />}
         </div>
       </div>
     </div>

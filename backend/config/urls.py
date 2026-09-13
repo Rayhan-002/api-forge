@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/", include("apps.saved_requests.urls")),
     path("api/", include("apps.history.urls")),
     path("api/", include("apps.environments.urls")),
+    path("api/", include("apps.testing.urls")),
 ]

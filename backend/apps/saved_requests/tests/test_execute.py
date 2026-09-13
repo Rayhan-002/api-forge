@@ -10,6 +10,7 @@ from apps.core.http_client import ExecutionResult
 from apps.environments.models import Environment, EnvironmentVariable
 from apps.history.models import RequestHistory
 from apps.saved_requests.models import SavedRequest
+from apps.testing.models import TestAssertion, TestResult
 
 pytestmark = pytest.mark.django_db
 
@@ -165,3 +166,79 @@ class TestSavedRequestExecuteView:
 
         assert response.data["success"] is True
         assert response.data["extractions"][0]["success"] is False
+
+    def test_no_assertions_returns_empty_test_results(self, api_client):
+        user = create_user()
+        saved_request = create_saved_request(user)
+        api_client.force_authenticate(user=user)
+
+        with patch("apps.core.services.execute_http_request", return_value=fake_result()):
+            response = api_client.post(
+                f"/api/requests/{saved_request.id}/execute/", VALID_PAYLOAD, format="json"
+            )
+
+        assert response.data["test_results"] == []
+
+    def test_successful_execution_runs_assertions_and_persists_results(self, api_client):
+        user = create_user()
+        saved_request = create_saved_request(user)
+        TestAssertion.objects.create(
+            saved_request=saved_request, type="status_code", config={"expected": 200}
+        )
+        TestAssertion.objects.create(
+            saved_request=saved_request,
+            type="json_field_equals",
+            config={"path": "token", "expected": "wrong"},
+        )
+        api_client.force_authenticate(user=user)
+
+        with patch("apps.core.services.execute_http_request", return_value=fake_result()):
+            response = api_client.post(
+                f"/api/requests/{saved_request.id}/execute/", VALID_PAYLOAD, format="json"
+            )
+
+        results = response.data["test_results"]
+        assert len(results) == 2
+        assert results[0]["passed"] is True
+        assert results[1]["passed"] is False
+
+        entry = RequestHistory.objects.get(owner=user)
+        assert TestResult.objects.filter(history=entry).count() == 2
+        assert TestResult.objects.filter(history=entry, passed=True).count() == 1
+
+    def test_failed_execution_does_not_run_assertions(self, api_client):
+        user = create_user()
+        saved_request = create_saved_request(user)
+        TestAssertion.objects.create(
+            saved_request=saved_request, type="status_code", config={"expected": 200}
+        )
+        api_client.force_authenticate(user=user)
+
+        with patch(
+            "apps.core.services.execute_http_request",
+            side_effect=RequestExecutionError("timeout", "Connection timed out."),
+        ):
+            response = api_client.post(
+                f"/api/requests/{saved_request.id}/execute/", VALID_PAYLOAD, format="json"
+            )
+
+        assert response.data["test_results"] == []
+        assert not TestResult.objects.exists()
+
+    def test_assertion_uses_custom_name_when_set(self, api_client):
+        user = create_user()
+        saved_request = create_saved_request(user)
+        TestAssertion.objects.create(
+            saved_request=saved_request,
+            name="Token present",
+            type="json_field_exists",
+            config={"path": "token"},
+        )
+        api_client.force_authenticate(user=user)
+
+        with patch("apps.core.services.execute_http_request", return_value=fake_result()):
+            response = api_client.post(
+                f"/api/requests/{saved_request.id}/execute/", VALID_PAYLOAD, format="json"
+            )
+
+        assert response.data["test_results"][0]["name"] == "Token present"

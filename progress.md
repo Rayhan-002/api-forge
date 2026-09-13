@@ -15,7 +15,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 5 | History | Done | _(this commit)_ |
 | 6 | Environments + variables | Done | _(this commit)_ |
 | 7 | Request chaining | Done | _(this commit)_ |
-| 8 | Testing / assertions | Not started | — |
+| 8 | Testing / assertions | Done | _(this commit)_ |
 | 9 | Dashboard + polish | Not started | — |
 | 10 | Testing + Docker + docs | Not started | — |
 
@@ -175,4 +175,25 @@ Full architecture/design plan: see project history — summarized in `README.md`
 ### Notes / deviations encountered
 - Matches the plan's own framing exactly: this is "extraction rules," not a multi-request Collection Runner — chaining N requests together still means manually running them in order (Request 1, then Request 2 which references what Request 1 extracted). An automated sequential runner remains a documented future improvement, not something this phase claims to be.
 - The JSON-path syntax is intentionally minimal (dotted keys + numeric array indices) rather than full JSONPath — consistent with the `{{variable}}` substitution syntax from Phase 6, which made the same simplicity tradeoff.
+- No deviations from the approved plan.
+
+---
+
+## Phase 8 — Testing / assertions
+
+### Planned
+- [ ] Structured assertion CRUD + evaluator, PASS/FAIL display with actual vs expected
+
+### Implemented
+- [x] `apps/core/json_path.py`: `PathNotFound`/`extract_json_value` moved here from `apps/saved_requests/extraction.py` so the same dotted-path extractor (from Phase 7) is shared by both request chaining *and* JSON-field test assertions rather than existing as two copies — `extraction.py` now just imports it.
+- [x] `TestAssertion`/`TestResult` models (`apps/testing`): an assertion belongs to a `SavedRequest` (`owner` is the same transitive-property pattern as `SavedRequest`/`EnvironmentVariable` from Phases 4/6, so `IsOwner` works unchanged); a result belongs to a `RequestHistory` entry and snapshots the assertion's name at the time it ran (`assertion` is `SET_NULL` — deleting the assertion definition later doesn't erase the historical result). Both classes set `__test__ = False` to stop pytest trying to collect them as test classes on name alone.
+- [x] Seven assertion types, all plain structured comparisons — **no `eval()`, no expression parser**: `status_code`, `response_time_lt`, `header_exists`, `header_equals` (case-insensitive header-name matching), `json_field_exists`, `json_field_equals` (reuses the Phase 7/8-shared `extract_json_value`), `body_contains`. `apps/testing/services.py` provides `describe_assertion()` (human-readable preview, e.g. `status_code == 200`) and `evaluate_assertion()` (returns pass/fail + actual value + message); `REQUIRED_CONFIG_KEYS` drives both the serializer's `config` validation and the frontend's dynamic form fields, so the two can't drift.
+- [x] `run_assertions()`: called automatically at the end of every **successful** saved-request execution (never on a network-level failure — there's no response to check), evaluates every assertion in order and bulk-creates their `TestResult` rows against that execution's `RequestHistory` entry. `apps/core/services.execute_and_log` was extended to return the `RequestHistory` row it created (previously discarded after use) so `SavedRequestExecuteView` has something to attach results to.
+- [x] Endpoints: `GET/POST /api/requests/{id}/tests/`, `GET/PATCH/DELETE /api/tests/{id}/`, both owner-scoped. `POST /api/requests/{id}/execute/`'s response now includes `test_results` (empty list when the request has no assertions defined, or when execution failed before a response came back); the ad-hoc `/api/execute/` always returns `test_results: []` since it has no saved request to attach assertions to.
+- [x] Frontend: a "Tests" tab appears in the request builder only for saved requests (`RequestBuilder`'s new `savedRequestId` prop) — `AssertionsTab` lists/creates/edits/deletes assertion *definitions* there, deliberately with no pass/fail shown (that's a property of a specific execution, not of the definition). `AssertionFormDialog` renders only the config fields relevant to the selected type with a live `describeAssertion()` preview line, matching the backend's own preview text exactly. After Send, the response panel gets its own "Tests (`passed`/`total`)" tab (only shown when the request actually has results), styled red when any assertion failed, listing each result with a PASS/FAIL icon and its actual-vs-expected message; a toast after Send also summarizes the pass/fail count.
+- [x] Backend tests: 33 new tests (182 total, all passing) — all seven evaluator types plus `describe_assertion` text for each, assertion CRUD + cross-user isolation + `config` validation (missing required keys per type rejected), and execution-integration tests (`test_results` empty with no assertions defined, populated and persisted on a successful execution, skipped entirely on a failed one, custom assertion `name` preserved over the auto-generated description).
+- [x] Live end-to-end verification (scripted headless Chrome) against **httpbin.org**: saved a request returning a known 200 JSON body, added a `status_code == 200` assertion via the new Tests tab, sent it and confirmed the response panel's "Tests (1/1)" tab with the assertion shown in green with a "200, got 200" message and an "All 1 test passed." toast; edited the same assertion to an impossible `status_code == 999`, re-sent, and confirmed "Tests (0/1)", the failing assertion in red with "Expected status 999, got 200.", and a "0/1 tests passed — check the Tests tab." toast; deleted the assertion back to the empty state. Screenshots confirm styling throughout.
+
+### Notes / deviations encountered
+- No `eval()` or any expression-parsing anywhere in the assertion system, matching the spec's explicit requirement — every assertion type is a fixed, structured comparison over a typed `config` dict.
 - No deviations from the approved plan.

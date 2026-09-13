@@ -1,3 +1,5 @@
+import type { TestResultOutcome } from '@/types/testing';
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
 export const HTTP_METHODS: HttpMethod[] = [
@@ -66,6 +68,7 @@ export interface ExecuteResponseSuccess {
   elapsed_ms: number;
   size_bytes: number;
   extractions: ExtractionOutcome[];
+  test_results: TestResultOutcome[];
 }
 
 export interface ExecuteResponseFailure {
