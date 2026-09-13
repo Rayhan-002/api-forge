@@ -25,6 +25,12 @@ export interface SavedRequestListItem {
   updated_at: string;
 }
 
+export interface ExtractRule {
+  variable_name: string;
+  source_path: string;
+  target_environment: string;
+}
+
 export interface SavedRequestDetail {
   id: string;
   collection: string;
@@ -38,7 +44,7 @@ export interface SavedRequestDetail {
   auth_type: AuthType;
   auth_config: AuthConfig;
   order: number;
-  extract_rules: unknown[];
+  extract_rules: ExtractRule[];
   created_at: string;
   updated_at: string;
 }
@@ -51,4 +57,9 @@ export interface CollectionPayload {
 export type SavedRequestPayload = Omit<
   SavedRequestDetail,
   'id' | 'collection' | 'order' | 'extract_rules' | 'created_at' | 'updated_at'
->;
+> & {
+  // Optional on write — the backend defaults it to [] on create, and it's
+  // otherwise only ever changed via the extraction-rule flows, not a
+  // regular request save.
+  extract_rules?: ExtractRule[];
+};

@@ -3,13 +3,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.environments.services import get_active_variables
-from apps.history.services import record_history
-
-from .errors import RequestExecutionError
-from .http_client import execute_http_request
 from .serializers import ExecuteRequestSerializer
-from .variables import resolve_payload
+from .services import execute_and_log
 
 
 class ExecuteView(APIView):
@@ -29,6 +24,10 @@ class ExecuteView(APIView):
     (e.g. a custom header redaction wouldn't know to cover), whereas the
     literal `{{token}}` text is always safe to store. See apps.core.variables
     and apps.history.services for the two halves of this.
+
+    See apps.saved_requests.views.SavedRequestExecuteView for the saved
+    equivalent, which additionally applies extraction rules — both share
+    the resolve/execute/log pipeline in apps.core.services.execute_and_log.
     """
 
     permission_classes = [IsAuthenticated]
@@ -40,34 +39,6 @@ class ExecuteView(APIView):
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
 
-        try:
-            variables = get_active_variables(request.user)
-            resolved = resolve_payload(payload, variables)
-            result = execute_http_request(
-                method=resolved["method"],
-                url=resolved["url"],
-                params=resolved["params"],
-                headers=resolved["headers"],
-                body_type=resolved["body_type"],
-                body=resolved["body"],
-                auth_type=resolved["auth_type"],
-                auth_config=resolved["auth_config"],
-            )
-        except RequestExecutionError as exc:
-            record_history(owner=request.user, request_data=payload, success=False, error_message=exc.message)
-            return Response({"success": False, "error_type": exc.error_type, "error_message": exc.message})
-
-        record_history(owner=request.user, request_data=payload, success=True, result=result)
-
-        return Response(
-            {
-                "success": True,
-                "status_code": result.status_code,
-                "reason_phrase": result.reason_phrase,
-                "headers": result.headers,
-                "body": result.body,
-                "url": result.url,
-                "elapsed_ms": result.elapsed_ms,
-                "size_bytes": result.size_bytes,
-            }
-        )
+        response_data, _result = execute_and_log(owner=request.user, payload=payload)
+        response_data.setdefault("extractions", [])
+        return Response(response_data)

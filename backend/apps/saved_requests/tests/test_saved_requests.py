@@ -3,6 +3,7 @@ from rest_framework import status
 
 from apps.accounts.models import User
 from apps.collections.models import Collection
+from apps.environments.models import Environment
 from apps.saved_requests.models import SavedRequest
 
 pytestmark = pytest.mark.django_db
@@ -163,6 +164,79 @@ class TestSavedRequestDetail:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert SavedRequest.objects.filter(id=saved_request.id).exists()
+
+
+class TestExtractRulesValidation:
+    def test_accepts_valid_rule_targeting_own_environment(self, api_client):
+        user = create_user()
+        environment = Environment.objects.create(owner=user, name="Dev")
+        saved_request = create_saved_request(create_collection(user))
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch(
+            f"/api/requests/{saved_request.id}/",
+            {
+                "extract_rules": [
+                    {
+                        "variable_name": "token",
+                        "source_path": "token",
+                        "target_environment": str(environment.id),
+                    }
+                ]
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        saved_request.refresh_from_db()
+        assert saved_request.extract_rules[0]["variable_name"] == "token"
+
+    def test_rejects_rule_targeting_another_users_environment(self, api_client):
+        owner = create_user(email="owner@example.com")
+        stranger = create_user(email="stranger@example.com")
+        strangers_env = Environment.objects.create(owner=stranger, name="Not yours")
+        saved_request = create_saved_request(create_collection(owner))
+        api_client.force_authenticate(user=owner)
+
+        response = api_client.patch(
+            f"/api/requests/{saved_request.id}/",
+            {
+                "extract_rules": [
+                    {
+                        "variable_name": "token",
+                        "source_path": "token",
+                        "target_environment": str(strangers_env.id),
+                    }
+                ]
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        saved_request.refresh_from_db()
+        assert saved_request.extract_rules == []
+
+    def test_rejects_invalid_variable_name(self, api_client):
+        user = create_user()
+        environment = Environment.objects.create(owner=user, name="Dev")
+        saved_request = create_saved_request(create_collection(user))
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch(
+            f"/api/requests/{saved_request.id}/",
+            {
+                "extract_rules": [
+                    {
+                        "variable_name": "not a valid key!",
+                        "source_path": "token",
+                        "target_environment": str(environment.id),
+                    }
+                ]
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestSavedRequestMove:

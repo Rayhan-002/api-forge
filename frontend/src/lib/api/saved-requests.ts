@@ -5,6 +5,7 @@ import type {
   SavedRequestListItem,
   SavedRequestPayload,
 } from '@/types/collections';
+import type { ExecuteRequestPayload, ExecuteResponse } from '@/types/request';
 
 export function listRequestsInCollection(collectionId: string) {
   return apiFetch<PaginatedResponse<SavedRequestListItem>>(
@@ -35,5 +36,18 @@ export function moveSavedRequest(id: string, targetCollectionId: string) {
   return apiFetch<SavedRequestDetail>(`/api/requests/${id}/move/`, {
     method: 'POST',
     body: { collection: targetCollectionId },
+  });
+}
+
+/**
+ * Executes a saved request, linking history to it and applying its
+ * extract_rules on success. `payload` is whatever the caller wants sent
+ * (typically the live builder draft, including unsaved edits) — it does
+ * not have to match what's actually persisted on the saved request.
+ */
+export function executeSavedRequest(id: string, payload: ExecuteRequestPayload) {
+  return apiFetch<ExecuteResponse>(`/api/requests/${id}/execute/`, {
+    method: 'POST',
+    body: payload,
   });
 }

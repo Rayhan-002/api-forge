@@ -5,9 +5,9 @@ import { use, useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { ApiError } from '@/lib/api/client';
-import { executeRequest } from '@/lib/api/execute';
-import { getSavedRequest, updateSavedRequest } from '@/lib/api/saved-requests';
+import { executeSavedRequest, getSavedRequest, updateSavedRequest } from '@/lib/api/saved-requests';
 import { buildExecutePayload, useRequestBuilderStore } from '@/store/request-builder-store';
+import { ExtractRulesSummary } from '@/components/request-builder/extract-rules-summary';
 import { RequestBuilder } from '@/components/request-builder/request-builder';
 import { ResponsePanel } from '@/components/response-viewer/response-panel';
 
@@ -32,11 +32,27 @@ export default function SavedRequestWorkspacePage({
     }
   }, [detailQuery.data, loadFromSavedRequest]);
 
-  const mutation = useMutation({ mutationFn: executeRequest });
+  const mutation = useMutation({
+    mutationFn: () => {
+      const payload = buildExecutePayload(useRequestBuilderStore.getState());
+      return executeSavedRequest(requestId, payload);
+    },
+    onSuccess: (result) => {
+      if (!result.success) return;
+      for (const extraction of result.extractions) {
+        if (extraction.success) {
+          toast.success(extraction.message);
+        } else {
+          toast.warning(
+            `Extraction for "${extraction.variable_name}" failed: ${extraction.message}`,
+          );
+        }
+      }
+    },
+  });
 
   function handleSend() {
-    const payload = buildExecutePayload(useRequestBuilderStore.getState());
-    mutation.mutate(payload);
+    mutation.mutate();
   }
 
   const saveMutation = useMutation({
@@ -85,12 +101,18 @@ export default function SavedRequestWorkspacePage({
           onSave={() => saveMutation.mutate()}
           isSaving={saveMutation.isPending}
         />
+        <ExtractRulesSummary
+          savedRequestId={requestId}
+          rules={detailQuery.data?.extract_rules ?? []}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         <ResponsePanel
           result={mutation.data}
           error={mutation.error}
           isLoading={mutation.isPending}
+          savedRequestId={requestId}
+          extractRules={detailQuery.data?.extract_rules ?? []}
         />
       </div>
     </div>

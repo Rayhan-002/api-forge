@@ -55,7 +55,7 @@ class TestExecuteView:
             size_bytes=12,
         )
 
-        with patch("apps.core.views.execute_http_request", return_value=fake_result):
+        with patch("apps.core.services.execute_http_request", return_value=fake_result):
             response = api_client.post("/api/execute/", VALID_PAYLOAD, format="json")
 
         assert response.status_code == status.HTTP_200_OK
@@ -68,7 +68,7 @@ class TestExecuteView:
         api_client.force_authenticate(user=user)
 
         with patch(
-            "apps.core.views.execute_http_request",
+            "apps.core.services.execute_http_request",
             side_effect=RequestExecutionError("timeout", "Connection timed out."),
         ):
             response = api_client.post("/api/execute/", VALID_PAYLOAD, format="json")
@@ -92,7 +92,7 @@ class TestExecuteView:
             size_bytes=0,
         )
 
-        with patch("apps.core.views.execute_http_request", return_value=fake_result):
+        with patch("apps.core.services.execute_http_request", return_value=fake_result):
             api_client.post("/api/execute/", VALID_PAYLOAD, format="json")
 
         entry = RequestHistory.objects.get(owner=user)
@@ -105,7 +105,7 @@ class TestExecuteView:
         api_client.force_authenticate(user=user)
 
         with patch(
-            "apps.core.views.execute_http_request",
+            "apps.core.services.execute_http_request",
             side_effect=RequestExecutionError("ssrf_blocked", "Host resolves to a disallowed address."),
         ):
             api_client.post("/api/execute/", VALID_PAYLOAD, format="json")
@@ -129,7 +129,7 @@ class TestExecuteViewVariableResolution:
             status_code=200, reason_phrase="OK", headers={}, body="", url="", elapsed_ms=1, size_bytes=0
         )
 
-        with patch("apps.core.views.execute_http_request", return_value=fake_result) as mock_execute:
+        with patch("apps.core.services.execute_http_request", return_value=fake_result) as mock_execute:
             payload = {**VALID_PAYLOAD, "url": "{{base_url}}/users"}
             response = api_client.post("/api/execute/", payload, format="json")
 
@@ -140,7 +140,7 @@ class TestExecuteViewVariableResolution:
         user = create_user()
         api_client.force_authenticate(user=user)
 
-        with patch("apps.core.views.execute_http_request") as mock_execute:
+        with patch("apps.core.services.execute_http_request") as mock_execute:
             payload = {**VALID_PAYLOAD, "url": "{{base_url}}/users"}
             response = api_client.post("/api/execute/", payload, format="json")
 
@@ -158,7 +158,7 @@ class TestExecuteViewVariableResolution:
             status_code=200, reason_phrase="OK", headers={}, body="", url="", elapsed_ms=1, size_bytes=0
         )
 
-        with patch("apps.core.views.execute_http_request", return_value=fake_result):
+        with patch("apps.core.services.execute_http_request", return_value=fake_result):
             payload = {
                 **VALID_PAYLOAD,
                 "headers": [{"key": "X-Token", "value": "{{token}}", "enabled": True}],

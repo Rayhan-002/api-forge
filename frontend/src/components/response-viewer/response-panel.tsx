@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
+import type { ExtractRule } from '@/types/collections';
 import type { ExecuteResponse } from '@/types/request';
 import { ResponseBodyViewer } from '@/components/response-viewer/response-body-viewer';
 import { ResponseErrorState } from '@/components/response-viewer/response-error-state';
@@ -16,9 +17,17 @@ interface ResponsePanelProps {
   result: ExecuteResponse | undefined;
   error: unknown;
   isLoading: boolean;
+  savedRequestId?: string;
+  extractRules?: ExtractRule[];
 }
 
-export function ResponsePanel({ result, error, isLoading }: ResponsePanelProps) {
+export function ResponsePanel({
+  result,
+  error,
+  isLoading,
+  savedRequestId,
+  extractRules,
+}: ResponsePanelProps) {
   const [tab, setTab] = useState<Tab>('body');
 
   if (isLoading) {
@@ -74,7 +83,13 @@ export function ResponsePanel({ result, error, isLoading }: ResponsePanelProps) 
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        {tab === 'body' && <ResponseBodyViewer body={result.body} />}
+        {tab === 'body' && (
+          <ResponseBodyViewer
+            body={result.body}
+            savedRequestId={savedRequestId}
+            extractRules={extractRules}
+          />
+        )}
         {tab === 'headers' && <ResponseHeadersTable headers={result.headers} />}
       </div>
     </div>

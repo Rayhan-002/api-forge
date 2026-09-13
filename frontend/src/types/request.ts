@@ -49,6 +49,13 @@ export interface ExecuteRequestPayload {
   auth_config: AuthConfig;
 }
 
+export interface ExtractionOutcome {
+  variable_name: string;
+  target_environment: string;
+  success: boolean;
+  message: string;
+}
+
 export interface ExecuteResponseSuccess {
   success: true;
   status_code: number;
@@ -58,6 +65,7 @@ export interface ExecuteResponseSuccess {
   url: string;
   elapsed_ms: number;
   size_bytes: number;
+  extractions: ExtractionOutcome[];
 }
 
 export interface ExecuteResponseFailure {

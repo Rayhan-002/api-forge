@@ -1,16 +1,30 @@
 'use client';
 
-import { Check, Copy } from 'lucide-react';
+import { Braces, Check, Copy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
+import type { ExtractRule } from '@/types/collections';
+import { ExtractVariableDialog } from '@/components/response-viewer/extract-variable-dialog';
 import { JsonTree, type JsonValue } from '@/components/response-viewer/json-tree';
 
 type ViewMode = 'pretty' | 'raw';
 
-export function ResponseBodyViewer({ body }: { body: string }) {
+interface ResponseBodyViewerProps {
+  body: string;
+  /** Only offered when viewing a saved request — chaining is tied to its identity. */
+  savedRequestId?: string;
+  extractRules?: ExtractRule[];
+}
+
+export function ResponseBodyViewer({
+  body,
+  savedRequestId,
+  extractRules = [],
+}: ResponseBodyViewerProps) {
   const [copied, setCopied] = useState(false);
   const [view, setView] = useState<ViewMode>('pretty');
+  const [extractOpen, setExtractOpen] = useState(false);
 
   const parsed = useMemo<JsonValue | undefined>(() => {
     try {
@@ -56,6 +70,15 @@ export function ResponseBodyViewer({ body }: { body: string }) {
             ))}
           </div>
         )}
+        {isJson && savedRequestId && (
+          <button
+            onClick={() => setExtractOpen(true)}
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          >
+            <Braces className="h-3.5 w-3.5" />
+            Extract
+          </button>
+        )}
         <button
           onClick={handleCopy}
           className="ml-auto flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-surface-hover hover:text-foreground"
@@ -78,6 +101,16 @@ export function ResponseBodyViewer({ body }: { body: string }) {
           </pre>
         )}
       </div>
+
+      {isJson && savedRequestId && (
+        <ExtractVariableDialog
+          open={extractOpen}
+          onClose={() => setExtractOpen(false)}
+          savedRequestId={savedRequestId}
+          existingRules={extractRules}
+          responseData={parsed}
+        />
+      )}
     </div>
   );
 }

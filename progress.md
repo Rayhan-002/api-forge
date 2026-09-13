@@ -14,7 +14,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 4 | Collections + saved requests | Done | _(this commit)_ |
 | 5 | History | Done | _(this commit)_ |
 | 6 | Environments + variables | Done | _(this commit)_ |
-| 7 | Request chaining | Not started | — |
+| 7 | Request chaining | Done | _(this commit)_ |
 | 8 | Testing / assertions | Not started | — |
 | 9 | Dashboard + polish | Not started | — |
 | 10 | Testing + Docker + docs | Not started | — |
@@ -156,3 +156,23 @@ Full architecture/design plan: see project history — summarized in `README.md`
 ### Notes / deviations encountered
 - No frontend live-preview of resolved values (e.g. showing what `{{base_url}}/users` currently resolves to while typing) — resolution is server-side-only and only visible in the actual response. A nice-to-have deferred as a future improvement.
 - No other deviations from the approved plan.
+
+---
+
+## Phase 7 — Request chaining
+
+### Planned
+- [ ] `extract_rules`, response-viewer "extract to variable" action, auto-apply on saved-request execute
+
+### Implemented
+- [x] `POST /api/requests/{id}/execute/` (`apps/saved_requests`): the saved-request counterpart to the ad-hoc `/api/execute/`. Refactored the shared "resolve variables → execute → log history" pipeline out of `ExecuteView` into `apps/core/services.execute_and_log` so both endpoints share it rather than drifting apart. The caller still supplies the request body to send (the live builder draft, unsaved edits included — same as the ad-hoc endpoint); only the extraction rules and the history's `saved_request` link come from what's actually persisted, since chaining is tied to the saved request's identity, not to a particular draft.
+- [x] `apps/saved_requests/extraction.py`: a small dotted-path extractor (`token`, `data.access_token`, `items.0.id` — not full JSONPath, deliberately) plus `apply_extract_rules`, which upserts an `EnvironmentVariable` per rule and reports a per-rule success/failure back to the caller rather than failing the whole request. Extraction only runs when the HTTP round-trip actually completed (any status code) — never on a network-level failure (timeout/DNS/SSRF-blocked/...), since there's nothing to extract from.
+- [x] `extract_rules` validation (`SavedRequestSerializer`): each rule's `variable_name` reuses the same key pattern as `EnvironmentVariable.key` (since it becomes one), and `target_environment` is checked against the caller's own environments at save time — not just at apply time — so a rule pointing at someone else's (or a since-deleted) environment is rejected immediately with a clear message rather than silently failing every time it runs.
+- [x] Frontend: an "Extract" action in the response body viewer (JSON responses only, only when viewing a saved request) opens a dialog — JSON path, variable name, target environment — that extracts the value immediately (via a small TS port of the same dotted-path logic, for instant feedback) *and* persists the rule for future auto-runs, composed entirely from the existing environment-variable and saved-request CRUD endpoints rather than needing new backend surface for this half. A compact chip list (`extract-rules-summary.tsx`) shows a saved request's current rules with a one-click remove. Toasts after Send report each extraction's outcome.
+- [x] Backend tests: 24 new tests — the extractor itself (nested keys, array indices, missing paths), `apply_extract_rules` (create vs. update-in-place, preserves `is_secret` on update, every failure mode, cross-user isolation on the target environment), the new execute endpoint (isolation, history linkage, extraction applied only on success, extraction failure doesn't fail the request), and serializer-level `extract_rules` validation (rejects another user's environment, rejects an invalid variable name).
+- [x] Live end-to-end verification (scripted headless Chrome) against **httpbin.org**: saved a request returning known JSON, sent it, extracted `slideshow.author` into `author_name` via the dialog, confirmed the chip appeared and the variable landed in the environment with the correct value, then re-sent the *same saved request* via the plain Send button (not the extraction dialog) and confirmed the "Set author_name in Dev." toast fired again automatically — proving the persisted rule genuinely auto-applies on every execution, not just the one that created it. Removed the rule via its chip and confirmed it was gone.
+
+### Notes / deviations encountered
+- Matches the plan's own framing exactly: this is "extraction rules," not a multi-request Collection Runner — chaining N requests together still means manually running them in order (Request 1, then Request 2 which references what Request 1 extracted). An automated sequential runner remains a documented future improvement, not something this phase claims to be.
+- The JSON-path syntax is intentionally minimal (dotted keys + numeric array indices) rather than full JSONPath — consistent with the `{{variable}}` substitution syntax from Phase 6, which made the same simplicity tradeoff.
+- No deviations from the approved plan.
