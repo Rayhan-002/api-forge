@@ -50,6 +50,7 @@ export function ExtractRulesSummary({ savedRequestId, rules }: ExtractRulesSumma
             <button
               onClick={() => deleteMutation.mutate(rule.variable_name)}
               className="ml-0.5 text-muted-foreground hover:text-danger"
+              title={`Remove the ${rule.variable_name} extraction rule`}
               aria-label={`Remove ${rule.variable_name} extraction rule`}
             >
               <X className="h-3 w-3" />

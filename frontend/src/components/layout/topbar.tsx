@@ -33,6 +33,8 @@ export function Topbar() {
         onClick={() => mutation.mutate()}
         isLoading={mutation.isPending}
         className="!px-2"
+        title="Sign out"
+        aria-label="Sign out"
       >
         <LogOut className="h-4 w-4" />
       </Button>

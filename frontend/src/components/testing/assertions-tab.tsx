@@ -89,6 +89,7 @@ export function AssertionsTab({ savedRequestId }: { savedRequestId: string }) {
             <button
               onClick={() => setDialog({ type: 'edit', assertion })}
               className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+              title="Edit this assertion"
               aria-label="Edit assertion"
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -96,6 +97,7 @@ export function AssertionsTab({ savedRequestId }: { savedRequestId: string }) {
             <button
               onClick={() => setDialog({ type: 'delete', assertion })}
               className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-danger"
+              title="Delete this assertion"
               aria-label="Delete assertion"
             >
               <Trash2 className="h-3.5 w-3.5" />

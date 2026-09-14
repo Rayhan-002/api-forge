@@ -46,6 +46,7 @@ export function HistoryRow({ entry, onRestore, onDelete }: HistoryRowProps) {
         <button
           onClick={() => onRestore(entry)}
           className="rounded p-1 text-muted-foreground hover:bg-border hover:text-foreground"
+          title="Restore this request into the workspace"
           aria-label="Restore request"
         >
           <RotateCcw className="h-3.5 w-3.5" />
@@ -53,6 +54,7 @@ export function HistoryRow({ entry, onRestore, onDelete }: HistoryRowProps) {
         <button
           onClick={() => onDelete(entry)}
           className="rounded p-1 text-muted-foreground hover:bg-border hover:text-danger"
+          title="Delete this history entry"
           aria-label="Delete history entry"
         >
           <Trash2 className="h-3.5 w-3.5" />

@@ -41,6 +41,7 @@ export function EnvironmentRow({
         <button
           onClick={() => setExpanded((e) => !e)}
           className="text-muted-foreground hover:text-foreground"
+          title={expanded ? 'Collapse this environment' : 'Expand this environment'}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -68,6 +69,7 @@ export function EnvironmentRow({
         <button
           onClick={() => onRename(environment)}
           className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          title="Rename this environment"
           aria-label="Rename environment"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -75,6 +77,7 @@ export function EnvironmentRow({
         <button
           onClick={() => onDelete(environment)}
           className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-danger"
+          title="Delete this environment"
           aria-label="Delete environment"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -111,6 +114,7 @@ export function EnvironmentRow({
                 <button
                   onClick={() => onEditVariable(environment, variable)}
                   className="rounded p-1 text-muted-foreground hover:bg-border hover:text-foreground"
+                  title="Edit this variable"
                   aria-label="Edit variable"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -118,6 +122,7 @@ export function EnvironmentRow({
                 <button
                   onClick={() => onDeleteVariable(environment, variable)}
                   className="rounded p-1 text-muted-foreground hover:bg-border hover:text-danger"
+                  title="Delete this variable"
                   aria-label="Delete variable"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

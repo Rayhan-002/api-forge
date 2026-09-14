@@ -7,7 +7,6 @@ import {
   ChevronRight,
   FolderOpen,
   FolderPlus,
-  GripVertical,
   Move,
   Pencil,
   Trash2,
@@ -39,6 +38,13 @@ interface CollectionNodeProps extends NodeActions {
 const INDENT_PX = 20;
 const BASE_PADDING_PX = 12;
 
+// Buttons nested inside a draggable row must not let their clicks be
+// swallowed by drag detection — stopping propagation here means dnd-kit's
+// sensor never starts "watching" a pointerdown that began on one of them.
+function stopForDrag(e: React.PointerEvent) {
+  e.stopPropagation();
+}
+
 export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps) {
   const { collection, children } = node;
   const [expanded, setExpanded] = useState(false);
@@ -54,6 +60,20 @@ export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps)
     id: collection.id,
     data: { type: 'collection' },
   });
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: collection.id,
+    data: { type: 'collection', collection },
+  });
+
+  function setRowRef(el: HTMLDivElement | null) {
+    setDropRef(el);
+    setDragRef(el);
+  }
 
   const isEmpty =
     expanded && !requestsQuery.isLoading && children.length === 0 && requests.length === 0;
@@ -61,16 +81,22 @@ export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps)
   return (
     <div>
       <div
-        ref={setDropRef}
+        ref={setRowRef}
+        {...listeners}
+        {...attributes}
         className={cn(
-          'flex items-center gap-2 py-2.5 pr-3 transition-colors',
+          'flex cursor-grab items-center gap-2 py-2.5 pr-3 transition-colors active:cursor-grabbing',
           isOver ? 'bg-accent/10 ring-1 ring-inset ring-accent' : 'hover:bg-surface-hover',
+          isDragging && 'opacity-40',
         )}
         style={{ paddingLeft: depth * INDENT_PX + BASE_PADDING_PX }}
+        title="Drag to move this folder into another collection or folder"
       >
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="text-muted-foreground hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
+          title={expanded ? 'Collapse this folder' : 'Expand this folder'}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -83,28 +109,36 @@ export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps)
         </span>
         <button
           onClick={() => actions.onCreateSubfolder(collection)}
-          className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          title="Add a subfolder inside this collection"
           aria-label="New subfolder"
         >
           <FolderPlus className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => actions.onMoveCollection(collection)}
-          className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          title="Move this folder to a different collection (or drag it directly)"
           aria-label="Move folder"
         >
           <Move className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => actions.onRenameCollection(collection)}
-          className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          title="Rename this collection"
           aria-label="Rename collection"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => actions.onDeleteCollection(collection)}
-          className="rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-danger"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-surface-hover hover:text-danger"
+          title="Delete this collection"
           aria-label="Delete collection"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -170,18 +204,20 @@ function RequestRow({
   return (
     <div
       ref={setNodeRef}
-      className="group flex items-center gap-2 py-2 pr-3 hover:bg-surface-hover"
-      style={{ paddingLeft: depth * INDENT_PX + BASE_PADDING_PX, opacity: isDragging ? 0.4 : 1 }}
+      {...listeners}
+      {...attributes}
+      className={cn(
+        'group flex cursor-grab items-center gap-2 py-2 pr-3 hover:bg-surface-hover active:cursor-grabbing',
+        isDragging && 'opacity-40',
+      )}
+      style={{ paddingLeft: depth * INDENT_PX + BASE_PADDING_PX }}
+      title="Drag to move this request into another folder or collection"
     >
-      <button
-        {...listeners}
-        {...attributes}
-        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-        aria-label={`Drag to move ${request.name}`}
+      <Link
+        href={`/workspace/${request.id}`}
+        className="flex min-w-0 flex-1 items-center gap-2"
+        title={`Open "${request.name}" in the workspace`}
       >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
-      <Link href={`/workspace/${request.id}`} className="flex min-w-0 flex-1 items-center gap-2">
         <span
           className={`w-14 shrink-0 font-mono text-xs font-semibold ${METHOD_COLOR[request.method]}`}
         >
@@ -192,21 +228,27 @@ function RequestRow({
       <div className="hidden items-center gap-1 group-hover:flex">
         <button
           onClick={() => onRename(request)}
-          className="rounded p-1 text-muted-foreground hover:bg-border hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-border hover:text-foreground"
+          title="Rename this request"
           aria-label="Rename request"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => onMove(request)}
-          className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-border hover:text-foreground"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-border hover:text-foreground"
+          title="Move this request to a different collection or folder"
           aria-label="Move request"
         >
           Move
         </button>
         <button
           onClick={() => onDelete(request)}
-          className="rounded p-1 text-muted-foreground hover:bg-border hover:text-danger"
+          onPointerDown={stopForDrag}
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-border hover:text-danger"
+          title="Delete this request"
           aria-label="Delete request"
         >
           <Trash2 className="h-3.5 w-3.5" />

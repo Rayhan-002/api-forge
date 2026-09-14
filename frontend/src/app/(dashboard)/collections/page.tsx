@@ -10,7 +10,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderPlus } from 'lucide-react';
+import { Folder, FolderPlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -23,7 +23,7 @@ import {
 } from '@/lib/api/collections';
 import { deleteSavedRequest, moveSavedRequest, updateSavedRequest } from '@/lib/api/saved-requests';
 import { ApiError } from '@/lib/api/client';
-import { buildCollectionTree } from '@/lib/utils/collection-tree';
+import { buildCollectionTree, getDescendantIds } from '@/lib/utils/collection-tree';
 import { METHOD_COLOR } from '@/lib/utils/method-color';
 import type { Collection, SavedRequestListItem } from '@/types/collections';
 import { Button } from '@/components/ui/button';
@@ -44,10 +44,14 @@ type DialogState =
   | { type: 'move-request'; request: SavedRequestListItem }
   | { type: 'delete-request'; request: SavedRequestListItem };
 
+type DraggedItem =
+  | { type: 'request'; request: SavedRequestListItem }
+  | { type: 'collection'; collection: Collection };
+
 export default function CollectionsPage() {
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' });
-  const [draggedRequest, setDraggedRequest] = useState<SavedRequestListItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: listCollections });
@@ -139,28 +143,48 @@ export default function CollectionsPage() {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current as
-      { type?: string; request?: SavedRequestListItem } | undefined;
-    if (data?.type === 'request' && data.request) setDraggedRequest(data.request);
+      | { type: 'request'; request: SavedRequestListItem }
+      | { type: 'collection'; collection: Collection }
+      | undefined;
+    if (data?.type === 'request') setDraggedItem({ type: 'request', request: data.request });
+    else if (data?.type === 'collection')
+      setDraggedItem({ type: 'collection', collection: data.collection });
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setDraggedRequest(null);
+    setDraggedItem(null);
     const { active, over } = event;
     if (!over) return;
 
     const data = active.data.current as
-      { type?: string; request?: SavedRequestListItem } | undefined;
-    if (data?.type !== 'request' || !data.request) return;
+      | { type: 'request'; request: SavedRequestListItem }
+      | { type: 'collection'; collection: Collection }
+      | undefined;
+    if (!data) return;
 
-    const request = data.request;
-    const targetCollectionId = String(over.id);
-    if (targetCollectionId === request.collection) return;
+    const targetId = String(over.id);
 
-    moveRequestMutation.mutate({
-      id: request.id,
-      target: targetCollectionId,
-      sourceCollectionId: request.collection,
-    });
+    if (data.type === 'request') {
+      const request = data.request;
+      if (targetId === request.collection) return;
+      moveRequestMutation.mutate({
+        id: request.id,
+        target: targetId,
+        sourceCollectionId: request.collection,
+      });
+      return;
+    }
+
+    // Dropping a folder onto itself or onto one of its own subfolders would
+    // create a cycle — the backend rejects this too, but checking here
+    // avoids a pointless round-trip for the most common accidental case.
+    const collection = data.collection;
+    if (targetId === collection.id) return;
+    if (getDescendantIds(collections, collection.id).has(targetId)) {
+      toast.error("Can't move a folder into one of its own subfolders.");
+      return;
+    }
+    moveCollectionMutation.mutate({ id: collection.id, parentId: targetId });
   }
 
   return (
@@ -218,14 +242,22 @@ export default function CollectionsPage() {
         </div>
 
         <DragOverlay>
-          {draggedRequest && (
+          {draggedItem?.type === 'request' && (
             <div className="flex items-center gap-2 rounded-md border border-accent bg-surface px-3 py-2 shadow-xl">
               <span
-                className={`w-14 shrink-0 font-mono text-xs font-semibold ${METHOD_COLOR[draggedRequest.method]}`}
+                className={`w-14 shrink-0 font-mono text-xs font-semibold ${METHOD_COLOR[draggedItem.request.method]}`}
               >
-                {draggedRequest.method}
+                {draggedItem.request.method}
               </span>
-              <span className="truncate text-sm text-foreground">{draggedRequest.name}</span>
+              <span className="truncate text-sm text-foreground">{draggedItem.request.name}</span>
+            </div>
+          )}
+          {draggedItem?.type === 'collection' && (
+            <div className="flex items-center gap-2 rounded-md border border-accent bg-surface px-3 py-2 shadow-xl">
+              <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate text-sm font-medium text-foreground">
+                {draggedItem.collection.name}
+              </span>
             </div>
           )}
         </DragOverlay>

@@ -36,6 +36,7 @@ export function EnvironmentSwitcher() {
         value={active?.id ?? ''}
         onChange={(e) => switchMutation.mutate(e.target.value)}
         className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-foreground focus:border-accent focus:outline-none"
+        title="Switch the active environment — controls which variables {{fill in}} on Send"
         aria-label="Active environment"
       >
         <option value="" className="bg-surface text-foreground">
