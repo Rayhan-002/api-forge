@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 
 import { listCollections } from '@/lib/api/collections';
+import { buildCollectionPathLabels } from '@/lib/utils/collection-tree';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
@@ -44,6 +45,7 @@ function SaveForm({
 }: Omit<SaveRequestDialogProps, 'open'> & { defaultName: string }) {
   const collectionsQuery = useQuery({ queryKey: ['collections'], queryFn: listCollections });
   const collections = collectionsQuery.data?.results ?? [];
+  const pathLabels = buildCollectionPathLabels(collections);
   const [name, setName] = useState(defaultName);
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
 
@@ -92,7 +94,7 @@ function SaveForm({
         >
           {collections.map((c) => (
             <option key={c.id} value={c.id} className="bg-surface text-foreground">
-              {c.name}
+              {pathLabels.get(c.id) ?? c.name}
             </option>
           ))}
         </select>

@@ -18,6 +18,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 8 | Testing / assertions | Done | _(this commit)_ |
 | 9 | Dashboard + polish | Not started | — |
 | 10 | Testing + Docker + docs | Not started | — |
+| — | Collection subfolders + drag-and-drop *(added beyond the original plan)* | Done | _(this commit)_ |
 
 ---
 
@@ -197,3 +198,25 @@ Full architecture/design plan: see project history — summarized in `README.md`
 ### Notes / deviations encountered
 - No `eval()` or any expression-parsing anywhere in the assertion system, matching the spec's explicit requirement — every assertion type is a fixed, structured comparison over a typed `config` dict.
 - No deviations from the approved plan.
+
+---
+
+## Additional feature — Collection subfolders + drag-and-drop
+
+Requested mid-project (not part of the original 10-phase plan): the ability to nest collections inside each other, and to drag a saved request from one folder into another instead of only using the Move dialog.
+
+### Implemented
+- [x] `Collection.parent` (self FK, nullable, `on_delete=CASCADE`): a subfolder is just a `Collection` whose `parent` points at another `Collection`, so every existing request/collection endpoint (list, CRUD, the saved-request move endpoint) already works on subfolders with no further change — a request can already be moved into a subfolder via the pre-existing `POST /api/requests/{id}/move/`.
+- [x] Cycle prevention (`apps/collections/services.get_descendant_ids` + `CollectionSerializer.validate_parent`): a collection can't be set as its own parent, and can't be moved into one of its own subfolders (walks the full descendant set, not just direct children). Reparenting across owners is rejected the same way Phase 7's `extract_rules.target_environment` is — the `parent` field's queryset is scoped to the caller's own collections, so another user's collection resolves as "does not exist" rather than leaking its existence.
+- [x] `CollectionListCreateView` now requests up to `page_size=100` (the existing DRF pagination knob) since the frontend builds the whole folder tree client-side from one flat list — a documented scale limit (100 collections+folders per user) rather than new pagination machinery.
+- [x] Frontend: `CollectionNode` (replacing the old flat `CollectionRow`) recursively renders arbitrarily deep subfolders with indentation, each with its own "New subfolder" / "Move" / "Rename" / "Delete" actions. `lib/utils/collection-tree.ts` builds the tree from the flat API response and also produces "Parent / Child" path labels, used everywhere a collection picker could otherwise show ambiguous duplicate names (the Save-request dialog, the request Move dialog, and the new folder Move dialog).
+- [x] Drag-and-drop (`@dnd-kit/core`): each saved request row is draggable via a dedicated grip handle (so the row's own navigation link and hover actions stay unaffected by drag listeners); each folder's header row is a drop target, highlighted while something is dragged over it, regardless of whether that folder is currently expanded. Dropping calls the same `move` endpoint and mutation already used by the Move dialog — the dialog stays as an accessible, no-drag-required alternative, not replaced.
+- [x] A lightweight "Move folder" dialog (`MoveCollectionDialog`) lets a subfolder be reparented (including back to the top level) without drag-and-drop — added because once folders nest, a folder created in the wrong place would otherwise be stuck there. It pre-filters out the folder's own descendants client-side (matching the backend's cycle check) so an invalid destination is never offered.
+- [x] Deleting a folder cascades to its subfolders and their saved requests (`on_delete=CASCADE` on `parent`, same as the existing collection→request cascade) — the delete-confirmation copy was updated to say so explicitly rather than only mentioning direct requests.
+- [x] Backend tests: 10 new tests — subfolder creation (incl. rejecting a parent owned by another user), reparenting (incl. clearing back to top-level), both cycle-prevention cases (self-parent, parent-is-own-descendant via a 3-level chain), cross-user reparenting rejection, cascade-delete through a subfolder to its saved requests, and moving a saved request into a subfolder via the pre-existing move endpoint. 192 backend tests passing total, `ruff` clean.
+- [x] Live end-to-end verification (scripted headless Chrome): built a 3-level folder tree (`Company API` → `Auth` → `Tokens`), saved a request directly into the middle folder via the save dialog's path-labeled picker, confirmed it rendered nested two levels deep, dragged it out into a different top-level collection and confirmed the toast + updated request counts, confirmed the "Move folder" dialog correctly excludes a folder's own descendants from its destination list (cycle prevention surfaced in the UI, not just the API), and moved a folder to the top level via that dialog. One check initially looked wrong in a screenshot (a folder still appeared nested in a screenshot taken immediately after its "moved" toast) — traced to the screenshot being snapped before React Query's post-mutation refetch had repainted, not an app bug: both a 2-second settle and a full page reload showed the correct, fully-detached tree. Documented here since a past phase (6) found a real bug this same way — this time the live check confirmed correctness instead.
+
+### Notes / deviations encountered
+- Folder-to-folder drag-and-drop was deliberately not built (only requests are draggable) — the "Move folder" dialog covers reparenting a folder with less complexity (no need to disambiguate a folder being dropped "into" vs. "next to" another folder in the drop-target UI). Worth revisiting if reorganizing large trees by dialog proves tedious.
+- `request_count` on a folder counts only requests saved directly in it, not recursively through its subfolders — kept consistent with how it worked before subfolders existed, and the delete-confirmation copy was reworded to not imply an exact recursive count.
+- Not part of the original 10-phase plan; layered on top of Phase 4's (collections) and Phase 7's (moving requests) existing endpoints with minimal new backend surface.

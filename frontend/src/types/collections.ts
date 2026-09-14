@@ -11,6 +11,7 @@ export interface Collection {
   id: string;
   name: string;
   description: string;
+  parent: string | null;
   request_count: number;
   created_at: string;
   updated_at: string;
@@ -52,6 +53,7 @@ export interface SavedRequestDetail {
 export interface CollectionPayload {
   name: string;
   description?: string;
+  parent?: string | null;
 }
 
 export type SavedRequestPayload = Omit<

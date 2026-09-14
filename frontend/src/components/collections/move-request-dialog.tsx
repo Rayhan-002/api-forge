@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 
+import { buildCollectionPathLabels } from '@/lib/utils/collection-tree';
 import type { Collection } from '@/types/collections';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -44,6 +45,7 @@ function MoveForm({
   currentCollectionId,
 }: Omit<MoveRequestDialogProps, 'open'>) {
   const options = collections.filter((c) => c.id !== currentCollectionId);
+  const pathLabels = buildCollectionPathLabels(collections);
   const [target, setTarget] = useState(options[0]?.id ?? '');
 
   function handleSubmit(event: FormEvent) {
@@ -74,7 +76,7 @@ function MoveForm({
         >
           {options.map((c) => (
             <option key={c.id} value={c.id} className="bg-surface text-foreground">
-              {c.name}
+              {pathLabels.get(c.id) ?? c.name}
             </option>
           ))}
         </select>

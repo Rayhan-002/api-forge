@@ -18,6 +18,7 @@ class CollectionListCreateView(generics.ListCreateAPIView):
         # requests).
         return (
             Collection.objects.filter(owner=self.request.user)
+            .select_related("parent")
             .annotate(request_count=Count("requests"))
             .order_by("name")
         )
@@ -31,4 +32,8 @@ class CollectionDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get_queryset(self):
-        return Collection.objects.filter(owner=self.request.user).annotate(request_count=Count("requests"))
+        return (
+            Collection.objects.filter(owner=self.request.user)
+            .select_related("parent")
+            .annotate(request_count=Count("requests"))
+        )
