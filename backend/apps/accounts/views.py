@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import authenticate
-from rest_framework import status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -17,12 +18,28 @@ from .services import (
     rotate_refresh_token,
 )
 
+# Documentation-only response shapes — the refresh token itself never
+# appears here, since it's set as an httpOnly cookie, not returned in the
+# body. See config/settings/base.py's REFRESH_COOKIE_* for how that cookie
+# is scoped.
+_AuthResponseSerializer = inline_serializer(
+    name="AuthResponse",
+    fields={"access": serializers.CharField(), "user": UserSerializer()},
+)
+_RefreshResponseSerializer = inline_serializer(
+    name="RefreshResponse", fields={"access": serializers.CharField()}
+)
+_DetailResponseSerializer = inline_serializer(
+    name="DetailResponse", fields={"detail": serializers.CharField()}
+)
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
 
+    @extend_schema(request=RegisterSerializer, responses={201: _AuthResponseSerializer})
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -42,6 +59,7 @@ class LoginView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
 
+    @extend_schema(request=LoginSerializer, responses={200: _AuthResponseSerializer})
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -66,6 +84,12 @@ class LoginView(APIView):
 class RefreshView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=None,
+        responses={200: _RefreshResponseSerializer},
+        description="Reads the refresh token from its httpOnly cookie — no request body. "
+        "Rotates the cookie on success.",
+    )
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not refresh_token:
@@ -86,6 +110,7 @@ class RefreshView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(request=None, responses={200: _DetailResponseSerializer})
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if refresh_token:

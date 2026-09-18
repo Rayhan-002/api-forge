@@ -23,7 +23,11 @@ class CollectionSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get("request")
-        if request is not None:
+        # The `is_authenticated` guard (rather than just `request is not
+        # None`) also keeps this working under drf-spectacular's schema
+        # generation, which instantiates serializers against a fake request
+        # carrying an AnonymousUser — filtering by that isn't a valid owner.
+        if request is not None and request.user.is_authenticated:
             self.fields["parent"].queryset = Collection.objects.filter(owner=request.user)
 
     def validate_parent(self, parent):

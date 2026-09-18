@@ -1,6 +1,6 @@
 # API Forge — Backend
 
-Django + Django REST Framework API for API Forge.
+Django + Django REST Framework API for API Forge. See the [root README](../README.md) for the full architecture writeup, security notes, and API summary.
 
 ## Stack
 
@@ -8,6 +8,7 @@ Django + Django REST Framework API for API Forge.
 - PostgreSQL
 - JWT auth (`djangorestframework-simplejwt`) with an httpOnly rotating refresh cookie
 - Redis-backed cache in Docker/prod (falls back to an in-process cache for native dev — see `config/settings/base.py`)
+- `drf-spectacular` for OpenAPI schema + Swagger UI (`/api/docs/`)
 
 ## Local setup (native, without Docker)
 
@@ -42,12 +43,24 @@ From the repo root: `docker compose up --build`. The `backend` service runs migr
 ## Tests
 
 ```bash
-pytest
+pytest        # 203 tests
+ruff check .  # lint
+ruff format . # format
 ```
+
+## API docs
+
+With the dev server running: Swagger UI at `/api/docs/`, raw OpenAPI schema at `/api/schema/`.
 
 ## Project layout
 
 - `config/` — Django project settings (`base.py` / `dev.py` / `prod.py`), root URLconf, WSGI/ASGI.
-- `apps/accounts` — custom email-based `User`, JWT register/login/refresh/logout/me.
-- `apps/core` — shared exception handling, pagination, permissions; the HTTP-execution service lands here in Phase 2.
-- `apps/collections`, `apps/saved_requests`, `apps/environments`, `apps/history`, `apps/testing` — scaffolded, implemented in later phases (see `../progress.md`).
+- `apps/accounts` — custom email-based `User`, JWT register/login/refresh/logout/me, refresh-rotation reuse detection.
+- `apps/core` — SSRF-safe `httpx` execution service, `{{variable}}` resolution, the shared `IsOwner` permission, exception handling, pagination, the ad-hoc execute endpoint, and the dashboard summary endpoint.
+- `apps/collections` — nestable collections (self-referential `parent`, cycle-checked).
+- `apps/saved_requests` — saved requests, move/execute endpoints, extraction rules.
+- `apps/environments` — environments + variables, one active per owner, secret masking.
+- `apps/history` — auto-logged execution history with secret redaction.
+- `apps/testing` — structured, `eval()`-free test assertions and their per-execution results.
+
+See [`../progress.md`](../progress.md) for the phase-by-phase build log.

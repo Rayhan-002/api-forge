@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -37,6 +38,7 @@ class HistoryDetailView(generics.RetrieveDestroyAPIView):
 class HistoryClearView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(responses={204: None})
     def delete(self, request):
         RequestHistory.objects.filter(owner=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

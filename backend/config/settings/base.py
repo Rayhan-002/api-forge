@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "corsheaders",
+    "drf_spectacular",
     # Local apps
     "apps.core",
     "apps.accounts",
@@ -126,6 +127,18 @@ REST_FRAMEWORK = {
         "auth": env("THROTTLE_RATE_AUTH", default="10/min"),
         "execute": env("THROTTLE_RATE_EXECUTE", default="60/min"),
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API Forge",
+    "DESCRIPTION": (
+        "A Postman-inspired API testing platform's own API — request execution with SSRF "
+        "protection, collections, environments, request chaining, and structured test "
+        "assertions. See the project README for the full architecture writeup."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # --- Simple JWT ---

@@ -34,3 +34,62 @@ class ExecuteRequestSerializer(serializers.Serializer):
                 )
 
         return attrs
+
+
+class ExecuteResponseSerializer(serializers.Serializer):
+    """
+    Documents the response shape of the execute-family endpoints for
+    OpenAPI only — never used for real (de)serialization, since
+    apps.core.services.execute_and_log builds this dict directly. A
+    success:true response uses status_code..size_bytes; a success:false
+    response uses error_type/error_message instead — always HTTP 200
+    either way, since a well-formed call to *this* endpoint always
+    succeeds even when the *target* request doesn't. extractions and
+    test_results are only ever non-empty for the saved-request endpoint.
+    """
+
+    success = serializers.BooleanField()
+    status_code = serializers.IntegerField(required=False)
+    reason_phrase = serializers.CharField(required=False)
+    headers = serializers.DictField(child=serializers.CharField(), required=False)
+    body = serializers.CharField(required=False, allow_blank=True)
+    url = serializers.CharField(required=False)
+    elapsed_ms = serializers.IntegerField(required=False)
+    size_bytes = serializers.IntegerField(required=False)
+    error_type = serializers.CharField(required=False)
+    error_message = serializers.CharField(required=False)
+    extractions = serializers.ListField(child=serializers.DictField(), required=False)
+    test_results = serializers.ListField(child=serializers.DictField(), required=False)
+
+
+class RecentActivityEntrySerializer(serializers.Serializer):
+    """Documentation-only — see DashboardSummaryView."""
+
+    id = serializers.UUIDField()
+    method = serializers.CharField()
+    url = serializers.CharField()
+    status_code = serializers.IntegerField(allow_null=True)
+    success = serializers.BooleanField()
+    executed_at = serializers.DateTimeField()
+    saved_request_id = serializers.UUIDField(allow_null=True)
+    saved_request_name = serializers.CharField(allow_null=True)
+
+
+class DashboardCountsSerializer(serializers.Serializer):
+    collections = serializers.IntegerField()
+    saved_requests = serializers.IntegerField()
+    environments = serializers.IntegerField()
+    history_entries = serializers.IntegerField()
+
+
+class TestSummarySerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    passed = serializers.IntegerField()
+
+
+class DashboardSummarySerializer(serializers.Serializer):
+    """Documents GET /api/dashboard/summary/'s response shape for OpenAPI only."""
+
+    counts = DashboardCountsSerializer()
+    recent_activity = RecentActivityEntrySerializer(many=True)
+    test_summary = TestSummarySerializer()

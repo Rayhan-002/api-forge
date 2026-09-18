@@ -17,7 +17,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 7 | Request chaining | Done | _(this commit)_ |
 | 8 | Testing / assertions | Done | _(this commit)_ |
 | 9 | Dashboard + polish | Done | _(this commit)_ |
-| 10 | Testing + Docker + docs | Not started | — |
+| 10 | Testing + Docker + docs | Done | _(this commit)_ |
 | — | Collection subfolders + drag-and-drop *(added beyond the original plan)* | Done | _(this commit)_ |
 
 ---
@@ -261,3 +261,24 @@ No backend changes; 192 backend tests still passing, frontend lint/tsc/build cle
 ### Notes / deviations encountered
 - No Vitest/React Testing Library unit tests added this phase — frontend testing depth remains deferred to Phase 10, per the original plan.
 - No other deviations from the approved plan.
+
+---
+
+## Phase 10 — Testing + Docker + docs
+
+### Planned
+- [ ] Fill remaining test gaps, verify clean-clone `docker compose up`, full README (Mermaid architecture diagram, setup, API summary, security notes, future improvements, CV bullet points), Swagger/OpenAPI docs via `drf-spectacular`
+
+### Implemented
+- [x] `drf-spectacular` wired in: `GET /api/schema/` (raw OpenAPI 3.0) and `GET /api/docs/` (Swagger UI). Getting a clean schema took real fixes, not just installing the package — every bare `APIView` (auth endpoints, execute, dashboard summary, environment activate/deactivate, history clear, saved-request move/execute) got an explicit `@extend_schema`, reusing existing serializers for request bodies and new documentation-only serializers (`ExecuteResponseSerializer`, `DashboardSummarySerializer`, small `inline_serializer`s for the auth endpoints) for the response shapes that were previously just plain dicts. Also fixed a real bug this surfaced: `CollectionSerializer.__init__` unconditionally queried `Collection.objects.filter(owner=request.user)` for its `parent` field's queryset, which crashed under schema generation's fake `AnonymousUser` request — guarded with `request.user.is_authenticated`, which is correct defensively regardless of drf-spectacular. `python manage.py spectacular --validate --fail-on-warn` now exits 0 with zero errors or warnings (was 66 errors across 13 views beforehand).
+- [x] Frontend test infrastructure from scratch (previously zero frontend tests, called out as an explicit gap in every earlier phase's notes): Vitest + React Testing Library + jsdom. `@types/node` bumped from `^20` to `^22` to satisfy Vitest 5's peer requirement — chosen to match the Docker image's `node:22-alpine` base rather than jumping to match the local dev machine's newer Node, so the pinned types stay meaningful for where the app actually runs.
+- [x] 51 frontend tests across 8 files: pure utility functions (`format.ts`, `json-path.ts`, `describe-assertion.ts`, `collection-tree.ts` — the last covering tree-building, path-label joining, and descendant-set computation for the subfolder feature), the `JsonTree` component (render + collapse/expand), the `KeyValueEditor` component (trailing-blank-row behavior, row removal, the enabled checkbox), the auth store, and — the one explicitly called out in the original plan as worth testing specifically — `apiFetch`'s silent-refresh-on-401 logic: attaches the token, transparently refreshes and retries exactly once on a stale token, propagates the original failure as an `ApiError` when the refresh also fails, and never attempts a refresh when a call is explicitly marked `skipAuth`.
+- [x] Backend test gap: `apps/collections/services.get_descendant_ids` (the cycle-prevention helper from the subfolder feature) was previously only exercised indirectly through API-level tests — added `apps/collections/tests/test_services.py` with direct unit tests for no-children, direct-children, multi-level, and sibling-isolation cases. 203 backend tests total (up from 199).
+- [x] Docker review: since this project was built in an environment without Docker installed, `docker compose up` has never actually been run — flagged honestly in the README rather than glossed over. Did a careful static review instead of skipping the concern: confirmed both `.dockerignore` files correctly exclude `node_modules`/`.venv` from the build context (so `npm ci`'s Linux-built `node_modules` inside the image isn't clobbered by a locally-installed Windows one — a real risk if the ignore file were missing or wrong, checked and confirmed fine), confirmed the `NEXT_PUBLIC_API_URL`/`REDIS_URL` split is correct (the former is browser-visible so correctly points at the host's published port `localhost:8000`; the latter is server-only so correctly uses the internal service name `redis`), and confirmed the new `drf-spectacular` and Vitest/RTL dependencies need no `Dockerfile` changes since both `pip install -r requirements/dev.txt` and `npm ci` already install whatever's newly listed. Asked the user to treat their first `docker compose up --build` as a real first run to verify, not an assumption.
+- [x] Full README rewrite (previously a Phase-1 stub deferring everything to "later"): feature list, a Mermaid architecture diagram showing the browser/API/Postgres/Redis/SSRF-guard/target relationship, a tech stack table, Docker + native setup instructions, an API summary table (with a pointer to the live Swagger docs as the actual source of truth), a security section covering SSRF/JWT/redaction/throttling in one place, a testing section, an honestly-scoped future-improvements list, and a CV-bullet-points section. `backend/README.md` and `frontend/README.md` refreshed to match current reality (project layout, test commands) instead of their original Phase-1 placeholder content, and now point back to the root README rather than duplicating it.
+- [x] Live verification: confirmed `/api/docs/` renders a working Swagger UI (screenshot) listing the documented endpoints correctly, confirmed the full backend suite (203 tests) and frontend suite (51 tests) both pass together as a final check, alongside `ruff check`/`ruff format --check` and the frontend's `tsc`/`lint`/`build`.
+
+### Notes / deviations encountered
+- Docker itself could not be run in this environment — documented as a known limitation rather than claimed as verified; the user is asked to run `docker compose up --build` on their own machine as the real first test.
+- Frontend test coverage is deliberately not exhaustive (not every component has a test) — it covers what the original plan called out specifically (param/header editor, status coloring formatting, auth refresh logic, JSON tree viewer) plus the pure logic functions that are cheapest to get high confidence in, rather than chasing a coverage percentage.
+- No other deviations from the approved plan. This closes out the original 10-phase plan in full.

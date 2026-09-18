@@ -1,5 +1,6 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -49,6 +50,12 @@ class EnvironmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 class EnvironmentActivateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=None,
+        responses={200: EnvironmentSerializer},
+        description="Activates this environment and deactivates any other active one for the "
+        "caller — at most one environment is active at a time.",
+    )
     def post(self, request, pk):
         environment = get_object_or_404(Environment.objects.filter(owner=request.user), pk=pk)
         activate_environment(request.user, environment)
@@ -58,6 +65,7 @@ class EnvironmentActivateView(APIView):
 class EnvironmentDeactivateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(request=None, responses={204: None})
     def post(self, request):
         deactivate_all(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

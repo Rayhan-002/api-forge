@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -6,7 +7,7 @@ from rest_framework.views import APIView
 
 from apps.collections.models import Collection
 from apps.core.permissions import IsOwner
-from apps.core.serializers import ExecuteRequestSerializer
+from apps.core.serializers import ExecuteRequestSerializer, ExecuteResponseSerializer
 from apps.core.services import execute_and_log
 from apps.testing.services import run_assertions
 
@@ -44,6 +45,7 @@ class SavedRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
 class SavedRequestMoveView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(request=MoveRequestSerializer, responses={200: SavedRequestSerializer})
     def post(self, request, pk):
         saved_request = get_object_or_404(SavedRequest.objects.filter(collection__owner=request.user), pk=pk)
         serializer = MoveRequestSerializer(data=request.data)
@@ -78,6 +80,7 @@ class SavedRequestExecuteView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "execute"
 
+    @extend_schema(request=ExecuteRequestSerializer, responses=ExecuteResponseSerializer)
     def post(self, request, pk):
         saved_request = get_object_or_404(SavedRequest.objects.filter(collection__owner=request.user), pk=pk)
 

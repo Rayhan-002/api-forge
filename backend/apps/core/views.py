@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -9,7 +10,7 @@ from apps.history.models import RequestHistory
 from apps.saved_requests.models import SavedRequest
 from apps.testing.models import TestResult
 
-from .serializers import ExecuteRequestSerializer
+from .serializers import DashboardSummarySerializer, ExecuteRequestSerializer, ExecuteResponseSerializer
 from .services import execute_and_log
 
 RECENT_ACTIVITY_LIMIT = 8
@@ -43,6 +44,7 @@ class ExecuteView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "execute"
 
+    @extend_schema(request=ExecuteRequestSerializer, responses=ExecuteResponseSerializer)
     def post(self, request):
         serializer = ExecuteRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -65,6 +67,7 @@ class DashboardSummaryView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=DashboardSummarySerializer)
     def get(self, request):
         user = request.user
 
