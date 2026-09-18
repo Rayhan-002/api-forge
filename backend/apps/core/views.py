@@ -3,8 +3,16 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.collections.models import Collection
+from apps.environments.models import Environment
+from apps.history.models import RequestHistory
+from apps.saved_requests.models import SavedRequest
+from apps.testing.models import TestResult
+
 from .serializers import ExecuteRequestSerializer
 from .services import execute_and_log
+
+RECENT_ACTIVITY_LIMIT = 8
 
 
 class ExecuteView(APIView):
@@ -44,3 +52,52 @@ class ExecuteView(APIView):
         response_data.setdefault("extractions", [])
         response_data.setdefault("test_results", [])
         return Response(response_data)
+
+
+class DashboardSummaryView(APIView):
+    """
+    Read-only aggregate for the dashboard: resource counts, the most recent
+    activity, and a pass/fail rollup of test assertion results — all scoped
+    to the caller. A plain dict response (like ExecuteView's) rather than a
+    Serializer, since this has one fixed, read-only shape with no input to
+    validate.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        counts = {
+            "collections": Collection.objects.filter(owner=user).count(),
+            "saved_requests": SavedRequest.objects.filter(collection__owner=user).count(),
+            "environments": Environment.objects.filter(owner=user).count(),
+            "history_entries": RequestHistory.objects.filter(owner=user).count(),
+        }
+
+        recent_entries = (
+            RequestHistory.objects.filter(owner=user)
+            .select_related("saved_request")
+            .order_by("-executed_at")[:RECENT_ACTIVITY_LIMIT]
+        )
+        recent_activity = [
+            {
+                "id": entry.id,
+                "method": entry.method,
+                "url": entry.url,
+                "status_code": entry.status_code,
+                "success": entry.success,
+                "executed_at": entry.executed_at,
+                "saved_request_id": entry.saved_request_id,
+                "saved_request_name": entry.saved_request.name if entry.saved_request else None,
+            }
+            for entry in recent_entries
+        ]
+
+        test_results = TestResult.objects.filter(history__owner=user)
+        test_summary = {
+            "total": test_results.count(),
+            "passed": test_results.filter(passed=True).count(),
+        }
+
+        return Response({"counts": counts, "recent_activity": recent_activity, "test_summary": test_summary})

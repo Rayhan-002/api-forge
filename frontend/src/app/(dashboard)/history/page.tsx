@@ -12,6 +12,7 @@ import type { HistoryEntry } from '@/types/history';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { HistoryRow } from '@/components/history/history-row';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type SuccessFilter = 'all' | 'success' | 'failed';
 
@@ -101,7 +102,13 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading history…</p>}
+      {historyQuery.isLoading && (
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-11" />
+          ))}
+        </div>
+      )}
 
       {!historyQuery.isLoading && entries.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-16 text-center">

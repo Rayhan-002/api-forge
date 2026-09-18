@@ -34,6 +34,7 @@ import { CollectionNode } from '@/components/collections/collection-node';
 import { MoveCollectionDialog } from '@/components/collections/move-collection-dialog';
 import { MoveRequestDialog } from '@/components/collections/move-request-dialog';
 import { RenameRequestDialog } from '@/components/collections/rename-request-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type DialogState =
   | { type: 'none' }
@@ -199,7 +200,11 @@ export default function CollectionsPage() {
       </div>
 
       {collectionsQuery.isLoading && (
-        <p className="text-sm text-muted-foreground">Loading collections…</p>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-11" />
+          ))}
+        </div>
       )}
 
       {!collectionsQuery.isLoading && collections.length === 0 && (

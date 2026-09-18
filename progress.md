@@ -16,7 +16,7 @@ Full architecture/design plan: see project history — summarized in `README.md`
 | 6 | Environments + variables | Done | _(this commit)_ |
 | 7 | Request chaining | Done | _(this commit)_ |
 | 8 | Testing / assertions | Done | _(this commit)_ |
-| 9 | Dashboard + polish | Not started | — |
+| 9 | Dashboard + polish | Done | _(this commit)_ |
 | 10 | Testing + Docker + docs | Not started | — |
 | — | Collection subfolders + drag-and-drop *(added beyond the original plan)* | Done | _(this commit)_ |
 
@@ -241,3 +241,23 @@ User-reported bug, caught by hand right after the revision above shipped: droppi
 - [x] Live end-to-end verification (scripted headless Chrome) reproducing the exact reported scenario: dragged a request and dropped it on a sibling request row inside a different collection's body (not that collection's header) — confirmed it moved correctly. Then confirmed nested-target precision still holds: dragged a request and dropped it precisely on a subfolder nested inside that same collection — confirmed it landed in the subfolder specifically, not the outer collection.
 
 No backend changes; 192 backend tests still passing, frontend lint/tsc/build clean.
+
+---
+
+## Phase 9 — Dashboard + polish
+
+### Planned
+- [ ] `/api/dashboard/summary/` endpoint, recent activity, stat tiles, toasts/skeletons/empty-states pass, Ctrl/Cmd+Enter to send
+
+### Implemented
+- [x] `GET /api/dashboard/summary/` (`apps/core/views.DashboardSummaryView`): owner-scoped counts (collections, saved requests, environments, history entries), the 8 most recent history entries (method/URL/status/success/timestamp, plus the linked saved request's id+name when there is one), and a pass/fail rollup across all `TestResult`s. A plain dict response, matching `ExecuteView`'s existing style, since the shape is fixed and read-only — no Serializer needed.
+- [x] Frontend: real Dashboard page replacing the Phase-1 placeholder — four clickable stat tiles (`StatTile`, each linking to the relevant page), a test pass-rate banner (only shown once at least one assertion has run), and a `RecentActivityList` where entries linked to a saved request are clickable through to it in the workspace, with its own empty state ("No requests sent yet.").
+- [x] `Skeleton` UI primitive (`components/ui/skeleton.tsx`) — a small reusable pulsing placeholder, replacing the plain "Loading…" text on Dashboard, Collections, Environments, and History with actual skeleton rows while their queries are in flight.
+- [x] Ctrl/Cmd+Enter to send now works from anywhere in the request builder (params, headers, body, auth — not just the URL bar, which is all Phase 2 originally wired up): `RequestBuilder` attaches a single `window` keydown listener for the lifetime of the builder instead of a per-input handler. It's dialog-safe — skipped whenever focus is inside an open `[role="dialog"]` — so it doesn't hijack Enter from, say, the "New Assertion" dialog's own form.
+- [x] Backend tests: 7 new tests (199 total) — auth required, counts scoped correctly to the caller (isolation from another user's resources), recent activity ordered newest-first and capped at 8, `saved_request_name`/`saved_request_id` present when linked and `null` otherwise, cross-user isolation on recent activity, test pass/fail rollup, and the all-zero shape for a brand-new user. `ruff` clean.
+- [x] **Bug found via live verification, not the test suite, and fixed**: the dashboard's `useQuery` had no explicit `staleTime`, so it inherited the app-wide 10-second default (set once, globally, in `app/providers.tsx`, for good reasons elsewhere — collections/environments/etc. don't need to refetch on every remount). For a "what's happening right now" dashboard, that's the wrong default — creating a collection, then clicking back to Dashboard within that 10-second window, showed stale zero-counts from the very first visit instead of the real numbers. Fixed by setting `staleTime: 0` on this one query, so it always refetches on mount. None of the 199 backend tests could have caught this — it's purely a frontend caching-policy bug, only visible by actually clicking through the app in the order a real user would.
+- [x] Live end-to-end verification (scripted headless Chrome): confirmed the all-zero skeleton-then-empty dashboard for a brand-new user; created a collection, an environment, a saved request with a passing test assertion, sent it, and sent a second SSRF-blocked request; confirmed the dashboard's four stat tiles read exactly 1/1/1/2, the test banner reads "1/1 test assertions passing," and Recent Activity shows both the successful (linked, named) and failed entries; clicked the named entry through to its saved request in the workspace; confirmed Ctrl+Enter sends from the Headers tab (not just the URL bar); confirmed Ctrl+Enter does **not** fire while the "New Assertion" dialog has focus (checked via a real network-request listener, not just a visual check). This exact sequence is what surfaced the staleTime bug above.
+
+### Notes / deviations encountered
+- No Vitest/React Testing Library unit tests added this phase — frontend testing depth remains deferred to Phase 10, per the original plan.
+- No other deviations from the approved plan.

@@ -21,6 +21,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EnvironmentFormDialog } from '@/components/environments/environment-form-dialog';
 import { EnvironmentRow } from '@/components/environments/environment-row';
 import { VariableFormDialog } from '@/components/environments/variable-form-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type DialogState =
   | { type: 'none' }
@@ -135,7 +136,11 @@ export default function EnvironmentsPage() {
       </div>
 
       {environmentsQuery.isLoading && (
-        <p className="text-sm text-muted-foreground">Loading environments…</p>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12" />
+          ))}
+        </div>
       )}
 
       {!environmentsQuery.isLoading && environments.length === 0 && (

@@ -1,7 +1,7 @@
 'use client';
 
 import { Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
 import { useRequestBuilderStore } from '@/store/request-builder-store';
@@ -52,6 +52,23 @@ export function RequestBuilder({
     onSend();
   }
 
+  // Ctrl/Cmd+Enter sends from anywhere in the builder — params, headers,
+  // body editor, wherever focus happens to be — not just the URL bar.
+  // Skipped while a dialog is open (e.g. editing an assertion) so it
+  // doesn't hijack Enter from a dialog's own form.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"]')) return;
+      e.preventDefault();
+      if (!url.trim() || isSending) return;
+      onSend();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [url, isSending, onSend]);
+
   return (
     <div className="flex flex-col gap-4 p-4">
       {requestName && <p className="text-sm font-medium text-foreground">{requestName}</p>}
@@ -61,9 +78,6 @@ export function RequestBuilder({
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSend();
-          }}
           placeholder="https://api.example.com/users"
           className="h-10 flex-1 rounded-md border border-border bg-surface px-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
         />
