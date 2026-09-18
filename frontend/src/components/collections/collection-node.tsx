@@ -56,6 +56,13 @@ export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps)
   });
   const requests = requestsQuery.data?.results ?? [];
 
+  // Droppable covers this folder's whole subtree — header row AND its
+  // expanded content — so dropping on any of its requests (not just its
+  // name row) still counts as "move into this folder." A nested subfolder
+  // renders its own (smaller) droppable on top of this one; DndContext uses
+  // pointerWithin collision detection so the innermost match under the
+  // pointer wins, meaning a drop precisely on a subfolder still targets
+  // that subfolder rather than this outer one.
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: collection.id,
     data: { type: 'collection' },
@@ -70,23 +77,20 @@ export function CollectionNode({ node, depth, ...actions }: CollectionNodeProps)
     data: { type: 'collection', collection },
   });
 
-  function setRowRef(el: HTMLDivElement | null) {
-    setDropRef(el);
-    setDragRef(el);
-  }
-
   const isEmpty =
     expanded && !requestsQuery.isLoading && children.length === 0 && requests.length === 0;
 
   return (
-    <div>
+    <div
+      ref={setDropRef}
+      className={cn(isOver && 'bg-accent/5 outline -outline-offset-1 outline-accent')}
+    >
       <div
-        ref={setRowRef}
+        ref={setDragRef}
         {...listeners}
         {...attributes}
         className={cn(
-          'flex cursor-grab items-center gap-2 py-2.5 pr-3 transition-colors active:cursor-grabbing',
-          isOver ? 'bg-accent/10 ring-1 ring-inset ring-accent' : 'hover:bg-surface-hover',
+          'flex cursor-grab items-center gap-2 py-2.5 pr-3 transition-colors hover:bg-surface-hover active:cursor-grabbing',
           isDragging && 'opacity-40',
         )}
         style={{ paddingLeft: depth * INDENT_PX + BASE_PADDING_PX }}

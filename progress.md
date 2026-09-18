@@ -231,3 +231,13 @@ User feedback after trying it: (1) the dedicated grip-handle icon for dragging r
 - [x] Live end-to-end verification (scripted headless Chrome): dragged a folder directly by its row (no handle) onto another top-level collection and confirmed it reparented; confirmed the action buttons nested inside that now-draggable row (rename, in particular) still fire on click rather than being swallowed by drag detection; confirmed a plain click on a request row still navigates to the workspace; dragged a request directly by its row into a different collection and confirmed it moved; spot-checked several `title` attributes (topbar sign-out, the Move-folder button, the request/folder row hints) resolve to the expected text.
 
 No backend changes in this revision — 192 backend tests still passing unchanged; frontend lint/tsc/build clean.
+
+### Fix — drop target was only the folder's thin header row
+
+User-reported bug, caught by hand right after the revision above shipped: dropping a request anywhere inside a collection's body — over its other requests, over blank space — did nothing; a move only worked when dropped precisely on the folder's name row. Root cause: `useDroppable` had only ever been registered on the header row itself, so the rest of a folder's expanded content (everything below the name) had no drop target registered on it at all.
+
+- [x] Split each `CollectionNode`'s single row into two elements: the outer wrapper (header + its expanded content) is now the `useDroppable` target for "move into this folder," while the header row alone stays the `useDraggable` handle for "move this folder elsewhere." A folder's entire visible footprint is now a valid drop zone, not just its name row.
+- [x] Switched `DndContext` to `pointerWithin` collision detection (from the default `rectIntersection`) so that when a nested subfolder's droppable is also under the pointer, the smaller/innermost one wins over its larger parent — otherwise widening every folder's drop zone to its whole body would have made it impossible to target a subfolder specifically instead of the folder containing it.
+- [x] Live end-to-end verification (scripted headless Chrome) reproducing the exact reported scenario: dragged a request and dropped it on a sibling request row inside a different collection's body (not that collection's header) — confirmed it moved correctly. Then confirmed nested-target precision still holds: dragged a request and dropped it precisely on a subfolder nested inside that same collection — confirmed it landed in the subfolder specifically, not the outer collection.
+
+No backend changes; 192 backend tests still passing, frontend lint/tsc/build clean.

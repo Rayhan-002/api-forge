@@ -3,6 +3,7 @@
 import {
   DndContext,
   DragOverlay,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
@@ -213,7 +214,12 @@ export default function CollectionsPage() {
         </div>
       )}
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex flex-col gap-2">
           {tree.map((rootNode) => (
             <div
